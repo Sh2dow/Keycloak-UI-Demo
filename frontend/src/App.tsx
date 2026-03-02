@@ -23,6 +23,7 @@ import {
 import { Notifications } from "@mantine/notifications";
 import { BrowserRouter, Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { UsersPage } from "./pages/users";
+import { OrdersPage } from "./pages/orders";
 import { RolesPage } from "./pages/roles";
 import { GroupsPage } from "./pages/groups";
 import { ClientsPage } from "./pages/clients";
@@ -83,6 +84,7 @@ function ShellLayout() {
             <AppShell.Navbar p="md">
                 <Stack gap="xs">
                     <NavLink component={Link} to="/users" label="Users" active={location.pathname.startsWith("/users")} />
+                    <NavLink component={Link} to="/orders" label="Orders" active={location.pathname.startsWith("/orders")} />
                     <NavLink component={Link} to="/roles" label="Roles" active={location.pathname.startsWith("/roles")} />
                     <NavLink component={Link} to="/groups" label="Groups" active={location.pathname.startsWith("/groups")} />
                     <NavLink component={Link} to="/clients" label="Clients" active={location.pathname.startsWith("/clients")} />
@@ -109,6 +111,7 @@ export default function App() {
                         routerProvider={routerProvider}
                         resources={[
                             { name: "users", list: "/users" },
+                            { name: "orders", list: "/orders" },
                             { name: "roles", list: "/roles" },
                             { name: "groups", list: "/groups" },
                             { name: "clients", list: "/clients" },
@@ -128,6 +131,7 @@ export default function App() {
                             >
                                 <Route index element={<NavigateToResource resource="users" />} />
                                 <Route path="/users" element={<UsersPage />} />
+                                <Route path="/orders" element={<OrdersPage />} />
                                 <Route path="/roles" element={<RolesPage />} />
                                 <Route path="/groups" element={<GroupsPage />} />
                                 <Route path="/clients" element={<ClientsPage />} />
@@ -149,4 +153,3 @@ export default function App() {
         </MantineProvider>
     );
 }
-

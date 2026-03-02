@@ -11,6 +11,9 @@ namespace backend.Controllers;
 [Route("api/users")]
 public class UsersController : ControllerBase
 {
+    public sealed record CreateUserRequest(string Subject, string Username, string? Email);
+    public sealed record UpdateUserRequest(string Username, string? Email);
+
     public sealed record OrderViewDto(
         Guid Id,
         string OrderType,
@@ -45,6 +48,87 @@ public class UsersController : ControllerBase
 
         var result = users.Select(MapUser).ToList();
         return Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db)
+    {
+        var user = await db.AppUsers
+            .AsNoTracking()
+            .Include(x => x.Orders)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (user == null) return NotFound();
+
+        return Ok(MapUser(user));
+    }
+
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateUserRequest req, [FromServices] AppDbContext db)
+    {
+        if (string.IsNullOrWhiteSpace(req.Subject)) return BadRequest("Subject is required");
+        if (string.IsNullOrWhiteSpace(req.Username)) return BadRequest("Username is required");
+
+        var subject = req.Subject.Trim();
+        var existing = await db.AppUsers.AnyAsync(x => x.Subject == subject);
+        if (existing) return Conflict("User with this subject already exists");
+
+        var user = new AppUser
+        {
+            Subject = subject,
+            Username = req.Username.Trim(),
+            Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim()
+        };
+
+        db.AppUsers.Add(user);
+        await db.SaveChangesAsync();
+
+        var created = await db.AppUsers
+            .AsNoTracking()
+            .Include(x => x.Orders)
+            .FirstAsync(x => x.Id == user.Id);
+
+        return Ok(MapUser(created));
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateUserRequest req,
+        [FromServices] AppDbContext db)
+    {
+        if (string.IsNullOrWhiteSpace(req.Username)) return BadRequest("Username is required");
+
+        var user = await db.AppUsers.FirstOrDefaultAsync(x => x.Id == id);
+        if (user == null) return NotFound();
+
+        user.Username = req.Username.Trim();
+        user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+
+        await db.SaveChangesAsync();
+
+        var updated = await db.AppUsers
+            .AsNoTracking()
+            .Include(x => x.Orders)
+            .FirstAsync(x => x.Id == id);
+
+        return Ok(MapUser(updated));
+    }
+
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db)
+    {
+        var user = await db.AppUsers.FirstOrDefaultAsync(x => x.Id == id);
+        if (user == null) return NotFound();
+
+        db.AppUsers.Remove(user);
+        await db.SaveChangesAsync();
+
+        return Ok(new { id });
     }
 
     [Authorize]
