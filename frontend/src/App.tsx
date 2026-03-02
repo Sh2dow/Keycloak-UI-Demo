@@ -1,93 +1,152 @@
-import { useAuth } from "react-oidc-context";
-import { api } from "./api";
 import { useState } from "react";
+import { Authenticated, Refine, useGetIdentity, useLogin, useLogout } from "@refinedev/core";
+import routerProvider, {
+    CatchAllNavigate,
+    NavigateToResource,
+    UnsavedChangesNotifier,
+} from "@refinedev/react-router-v6";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+    AppShell,
+    Box,
+    Burger,
+    Button,
+    Flex,
+    Group,
+    MantineProvider,
+    NavLink,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
+import { BrowserRouter, Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { UsersPage } from "./pages/users";
+import { RolesPage } from "./pages/roles";
+import { GroupsPage } from "./pages/groups";
+import { ClientsPage } from "./pages/clients";
+import { keycloakAuthProvider } from "./providers/keycloakAuthProvider";
+import { keycloakDataProvider } from "./providers/keycloakDataProvider";
 
-type TodoItem = {
-    id: string;
-    title: string;
-    isDone: boolean;
-    userSub: string;
-    createdAtUtc: string;
-};
+const API_URL = "http://localhost:5274";
+const queryClient = new QueryClient();
 
-export default function App() {
-    const auth = useAuth();
-    const [title, setTitle] = useState("");
-    const [todos, setTodos] = useState<TodoItem[]>([]);
-
-    const getAccessToken = async () => {
-        const token = auth.user?.access_token;
-        if (token) return token;
-        await auth.signinRedirect();
-        return null;
-    };
-
-    const load = async () => {
-        const token = await getAccessToken();
-        if (!token) return;
-        const res = await api(token).get<TodoItem[]>("/api/todos");
-        setTodos(res.data);
-    };
-
-    const create = async () => {
-        if (!title.trim()) return;
-        const token = await getAccessToken();
-        if (!token) return;
-        await api(token).post("/api/todos", { title });
-        setTitle("");
-        await load();
-    };
-
-    if (auth.isLoading) return <div>Loading auth…</div>;
-
-    if (auth.error) return <div>Auth error: {String(auth.error)}</div>;
-
-    if (!auth.isAuthenticated) {
-        return (
-            <div style={{ padding: 24 }}>
-                <h2>Keycloak + React + .NET + EF Core</h2>
-                <button onClick={() => auth.signinRedirect()}>Login</button>
-            </div>
-        );
-    }
+function LoginPage() {
+    const { mutate: login, isLoading } = useLogin();
 
     return (
-        <div style={{ padding: 24 }}>
-            <h2>Logged in</h2>
-
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button onClick={load}>Load Todos</button>
-                <button onClick={() => auth.signoutRedirect()}>Logout</button>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="New todo title"
-                />
-                <button onClick={create}>Create</button>
-            </div>
-
-            <pre style={{ background: "#111", color: "#ddd", padding: 12 }}>
-        {JSON.stringify(todos, null, 2)}
-      </pre>
-
-            <div style={{ marginTop: 12 }}>
-                <button
-                    onClick={async () => {
-                        const token = await getAccessToken();
-                        if (!token) return;
-                        const res = await api(token).get("/api/todos/admin");
-                        alert(res.data);
-                    }}
-                >
-                    Call admin endpoint
-                </button>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>
-                    (Works only if your Keycloak user has realm role <code>admin</code>)
-                </div>
-            </div>
-        </div>
+        <Flex align="center" justify="center" h="100vh" bg="gray.1">
+            <Paper withBorder radius="md" p="xl" w={360}>
+                <Stack>
+                    <Title order={3}>Sign In</Title>
+                    <Text c="dimmed" size="sm">
+                        Authenticate with Keycloak to access Refine admin pages.
+                    </Text>
+                    <Button loading={isLoading} onClick={() => login({})}>
+                        Login with Keycloak
+                    </Button>
+                </Stack>
+            </Paper>
+        </Flex>
     );
 }
+
+function ShellLayout() {
+    const [opened, setOpened] = useState(true);
+    const location = useLocation();
+    const { data: identity } = useGetIdentity<{ id: string; name: string }>();
+    const { mutate: logout } = useLogout();
+
+    return (
+        <AppShell
+            header={{ height: 56 }}
+            navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
+            padding="md"
+        >
+            <AppShell.Header>
+                <Group h="100%" px="md" justify="space-between">
+                    <Group>
+                        <Burger opened={opened} onClick={() => setOpened((value) => !value)} hiddenFrom="sm" size="sm" />
+                        <Text fw={700}>Keycloak Refine Console</Text>
+                    </Group>
+                    <Group>
+                        <Text size="sm" c="dimmed">
+                            {identity?.name ?? "Unknown"}
+                        </Text>
+                        <Button size="xs" variant="light" color="red" onClick={() => logout({})}>
+                            Logout
+                        </Button>
+                    </Group>
+                </Group>
+            </AppShell.Header>
+            <AppShell.Navbar p="md">
+                <Stack gap="xs">
+                    <NavLink component={Link} to="/users" label="Users" active={location.pathname.startsWith("/users")} />
+                    <NavLink component={Link} to="/roles" label="Roles" active={location.pathname.startsWith("/roles")} />
+                    <NavLink component={Link} to="/groups" label="Groups" active={location.pathname.startsWith("/groups")} />
+                    <NavLink component={Link} to="/clients" label="Clients" active={location.pathname.startsWith("/clients")} />
+                </Stack>
+            </AppShell.Navbar>
+            <AppShell.Main>
+                <Box maw={1200}>
+                    <Outlet />
+                </Box>
+            </AppShell.Main>
+        </AppShell>
+    );
+}
+
+export default function App() {
+    return (
+        <MantineProvider defaultColorScheme="light">
+            <Notifications />
+            <BrowserRouter>
+                <QueryClientProvider client={queryClient}>
+                    <Refine
+                        authProvider={keycloakAuthProvider}
+                        dataProvider={keycloakDataProvider(API_URL)}
+                        routerProvider={routerProvider}
+                        resources={[
+                            { name: "users", list: "/users" },
+                            { name: "roles", list: "/roles" },
+                            { name: "groups", list: "/groups" },
+                            { name: "clients", list: "/clients" },
+                        ]}
+                        options={{
+                            syncWithLocation: true,
+                            warnWhenUnsavedChanges: true,
+                        }}
+                    >
+                        <Routes>
+                            <Route
+                                element={
+                                    <Authenticated key="protected-routes" fallback={<CatchAllNavigate to="/login" />}>
+                                        <ShellLayout />
+                                    </Authenticated>
+                                }
+                            >
+                                <Route index element={<NavigateToResource resource="users" />} />
+                                <Route path="/users" element={<UsersPage />} />
+                                <Route path="/roles" element={<RolesPage />} />
+                                <Route path="/groups" element={<GroupsPage />} />
+                                <Route path="/clients" element={<ClientsPage />} />
+                            </Route>
+                            <Route
+                                path="/login"
+                                element={
+                                    <Authenticated key="login-route" fallback={<LoginPage />}>
+                                        <NavigateToResource resource="users" />
+                                    </Authenticated>
+                                }
+                            />
+                            <Route path="*" element={<CatchAllNavigate to="/users" />} />
+                        </Routes>
+                        <UnsavedChangesNotifier />
+                    </Refine>
+                </QueryClientProvider>
+            </BrowserRouter>
+        </MantineProvider>
+    );
+}
+
