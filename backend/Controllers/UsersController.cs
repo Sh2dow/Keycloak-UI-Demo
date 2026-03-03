@@ -125,11 +125,12 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db)
     {
-        var user = await db.AppUsers.FirstOrDefaultAsync(x => x.Id == id);
-        if (user == null) return NotFound();
+        var affected = await db.AppUsers
+            .Where(x => x.Id == id)
+            .ExecuteDeleteAsync();
 
-        db.AppUsers.Remove(user);
-        await db.SaveChangesAsync();
+        if (affected == 0)
+            return NotFound();
 
         return Ok(new { id });
     }

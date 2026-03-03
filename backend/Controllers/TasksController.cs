@@ -21,16 +21,16 @@ public class TasksController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> List([FromServices] AppDbContext db)
+    public async Task<IActionResult> List([FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         // Demonstrates loading a user/task/comment graph without tracking while preserving
         // entity identity for repeated references (e.g. same author on multiple comments).
         var tasks = await db.Tasks
             .AsNoTrackingWithIdentityResolution()
-            .Where(x => x.UserId == user.Id)
+            .Where(x => x.UserId == user!.Id)
             .Include(x => x.Comments)
             .ThenInclude(x => x.Author)
             .OrderByDescending(x => x.CreatedAtUtc)
@@ -41,16 +41,16 @@ public class TasksController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db)
+    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var task = await db.Tasks
             .AsNoTrackingWithIdentityResolution()
             .Include(x => x.Comments)
             .ThenInclude(x => x.Author)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
 
         if (task == null) return NotFound();
         return Ok(MapTask(task));
@@ -58,16 +58,19 @@ public class TasksController : ControllerBase
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateTaskRequest req, [FromServices] AppDbContext db)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateTaskRequest req,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         if (string.IsNullOrWhiteSpace(req.Title)) return BadRequest("Title is required");
 
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var task = new TaskItem
         {
-            UserId = user.Id,
+            UserId = user!.Id,
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
             Status = NormalizeStatus(req.Status),
@@ -82,12 +85,16 @@ public class TasksController : ControllerBase
 
     [Authorize]
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTaskRequest req, [FromServices] AppDbContext db)
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateTaskRequest req,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
         if (task == null) return NotFound();
 
         if (!string.IsNullOrWhiteSpace(req.Title))
@@ -106,16 +113,18 @@ public class TasksController : ControllerBase
 
     [Authorize]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db)
+    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
-        if (task == null) return NotFound();
+        var affected = await db.Tasks
+            .Where(x => x.Id == id && x.UserId == user!.Id)
+            .ExecuteDeleteAsync();
 
-        db.Tasks.Remove(task);
-        await db.SaveChangesAsync();
+        if (affected == 0)
+            return NotFound();
+
         return Ok(new { id });
     }
 
@@ -124,20 +133,21 @@ public class TasksController : ControllerBase
     public async Task<IActionResult> AddComment(
         Guid id,
         [FromBody] AddTaskCommentRequest req,
-        [FromServices] AppDbContext db)
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         if (string.IsNullOrWhiteSpace(req.Content)) return BadRequest("Content is required");
 
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
         if (task == null) return NotFound();
 
         var comment = new TaskComment
         {
             TaskId = task.Id,
-            AuthorId = user.Id,
+            AuthorId = user!.Id,
             Content = req.Content.Trim()
         };
 
@@ -176,6 +186,33 @@ public class TasksController : ControllerBase
         db.AppUsers.Add(user);
         await db.SaveChangesAsync();
         return user;
+    }
+
+    private async Task<(AppUser? User, IActionResult? Error)> ResolveEffectiveUser(AppDbContext db, Guid? asUserId)
+    {
+        var currentUser = await GetOrCreateCurrentUser(db);
+        if (currentUser == null) return (null, Unauthorized("Missing sub"));
+
+        if (!asUserId.HasValue || asUserId.Value == currentUser.Id)
+        {
+            return (currentUser, null);
+        }
+
+        if (!User.IsInRole("admin"))
+        {
+            return (null, Forbid());
+        }
+
+        var targetUser = await db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == asUserId.Value);
+
+        if (targetUser == null)
+        {
+            return (null, NotFound("Target user not found"));
+        }
+
+        return (targetUser, null);
     }
 
     private static string NormalizeStatus(string? status)

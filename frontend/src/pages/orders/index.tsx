@@ -8,9 +8,11 @@ import {
     Select,
     Stack,
     Table,
+    Text,
     TextInput,
     Title,
 } from "@mantine/core";
+import { useSearchParams } from "react-router-dom";
 
 type OrderItem = {
     id: string;
@@ -24,7 +26,12 @@ type OrderItem = {
 };
 
 export function OrdersPage() {
-    const listQuery = useList<OrderItem>({ resource: "orders" });
+    const [searchParams] = useSearchParams();
+    const asUserId = searchParams.get("asUserId") ?? undefined;
+    const listQuery = useList<OrderItem>({
+        resource: "orders",
+        meta: asUserId ? { asUserId } : undefined,
+    });
     const invalidate = useInvalidate();
     const { mutateAsync: createOrder, isLoading: isCreating } = useCreate();
     const { mutateAsync: updateOrder, isLoading: isUpdating } = useUpdate();
@@ -59,6 +66,7 @@ export function OrdersPage() {
 
         await createOrder({
             resource: "orders",
+            meta: asUserId ? { asUserId } : undefined,
             values: {
                 orderType,
                 totalAmount,
@@ -88,6 +96,7 @@ export function OrdersPage() {
         await updateOrder({
             resource: "orders",
             id: editing.id,
+            meta: asUserId ? { asUserId } : undefined,
             values: {
                 totalAmount,
                 status: editStatus.trim(),
@@ -105,6 +114,7 @@ export function OrdersPage() {
         await deleteOrder({
             resource: "orders",
             id,
+            meta: asUserId ? { asUserId } : undefined,
         });
         await refresh();
     };
@@ -112,6 +122,11 @@ export function OrdersPage() {
     return (
         <Stack>
             <Title order={2}>Orders</Title>
+            {asUserId && (
+                <Text c="dimmed" size="sm">
+                    Explore mode: acting on user {asUserId}
+                </Text>
+            )}
 
             <Group align="flex-end" grow>
                 <Select
@@ -242,4 +257,3 @@ export function OrdersPage() {
         </Stack>
     );
 }
-

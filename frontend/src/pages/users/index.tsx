@@ -13,6 +13,7 @@ import {
     TextInput,
     Title,
 } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 
 type OrderItem = {
     id: string;
@@ -35,6 +36,7 @@ type AppUser = {
 };
 
 export function UsersPage() {
+    const navigate = useNavigate();
     const listQuery = useList<AppUser>({
         resource: "users",
     });
@@ -110,6 +112,14 @@ export function UsersPage() {
         await refresh();
     };
 
+    const exploreOrders = (id: string) => {
+        navigate(`/orders?asUserId=${encodeURIComponent(id)}`);
+    };
+
+    const exploreTasks = (id: string) => {
+        navigate(`/tasks?asUserId=${encodeURIComponent(id)}`);
+    };
+
     if (listQuery.isLoading) {
         return <Loader />;
     }
@@ -168,6 +178,12 @@ export function UsersPage() {
                                 <Group gap="xs">
                                     <Button size="xs" variant="light" onClick={() => onOpenEdit(user)}>
                                         Edit
+                                    </Button>
+                                    <Button size="xs" variant="light" color="teal" onClick={() => exploreOrders(user.id)}>
+                                        Explore Orders
+                                    </Button>
+                                    <Button size="xs" variant="light" color="cyan" onClick={() => exploreTasks(user.id)}>
+                                        Explore Tasks
                                     </Button>
                                     <Button
                                         size="xs"

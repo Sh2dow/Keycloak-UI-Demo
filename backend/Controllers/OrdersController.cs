@@ -14,14 +14,14 @@ public class OrdersController : ControllerBase
 {
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> List([FromServices] AppDbContext db)
+    public async Task<IActionResult> List([FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var orders = await db.Orders
             .AsNoTracking()
-            .Where(x => x.UserId == user.Id)
+            .Where(x => x.UserId == user!.Id)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
@@ -30,14 +30,14 @@ public class OrdersController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db)
+    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var order = await db.Orders
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
 
         if (order == null) return NotFound();
 
@@ -48,18 +48,19 @@ public class OrdersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateOrderRequest req,
-        [FromServices] AppDbContext db)
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         var orderType = req.OrderType.Trim().ToLowerInvariant();
 
         if (orderType == "digital")
         {
-            return await CreateDigital(new CreateDigitalOrderRequest(req.TotalAmount, req.DownloadUrl ?? string.Empty), db);
+            return await CreateDigital(new CreateDigitalOrderRequest(req.TotalAmount, req.DownloadUrl ?? string.Empty), db, asUserId);
         }
 
         if (orderType == "physical")
         {
-            return await CreatePhysical(new CreatePhysicalOrderRequest(req.TotalAmount, req.ShippingAddress ?? string.Empty, req.TrackingNumber), db);
+            return await CreatePhysical(new CreatePhysicalOrderRequest(req.TotalAmount, req.ShippingAddress ?? string.Empty, req.TrackingNumber), db, asUserId);
         }
 
         return BadRequest("OrderType must be either 'digital' or 'physical'");
@@ -69,17 +70,18 @@ public class OrdersController : ControllerBase
     [HttpPost("digital")]
     public async Task<IActionResult> CreateDigital(
         [FromBody] CreateDigitalOrderRequest req,
-        [FromServices] AppDbContext db)
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.DownloadUrl)) return BadRequest("DownloadUrl is required");
 
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var order = new DigitalOrder
         {
-            UserId = user.Id,
+            UserId = user!.Id,
             TotalAmount = req.TotalAmount,
             DownloadUrl = req.DownloadUrl.Trim(),
             Status = "Created"
@@ -96,16 +98,17 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateOrderRequest req,
-        [FromServices] AppDbContext db)
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.Status)) return BadRequest("Status is required");
 
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
 
         if (order == null) return NotFound();
 
@@ -132,13 +135,13 @@ public class OrdersController : ControllerBase
 
     [Authorize]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db)
+    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
     {
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user.Id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
 
         if (order == null) return NotFound();
 
@@ -152,17 +155,18 @@ public class OrdersController : ControllerBase
     [HttpPost("physical")]
     public async Task<IActionResult> CreatePhysical(
         [FromBody] CreatePhysicalOrderRequest req,
-        [FromServices] AppDbContext db)
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.ShippingAddress)) return BadRequest("ShippingAddress is required");
 
-        var user = await GetOrCreateCurrentUser(db);
-        if (user == null) return Unauthorized("Missing sub");
+        var (user, error) = await ResolveEffectiveUser(db, asUserId);
+        if (error != null) return error;
 
         var order = new PhysicalOrder
         {
-            UserId = user.Id,
+            UserId = user!.Id,
             TotalAmount = req.TotalAmount,
             ShippingAddress = req.ShippingAddress.Trim(),
             TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim(),
@@ -193,6 +197,33 @@ public class OrdersController : ControllerBase
         db.AppUsers.Add(user);
         await db.SaveChangesAsync();
         return user;
+    }
+
+    private async Task<(AppUser? User, IActionResult? Error)> ResolveEffectiveUser(AppDbContext db, Guid? asUserId)
+    {
+        var currentUser = await GetOrCreateCurrentUser(db);
+        if (currentUser == null) return (null, Unauthorized("Missing sub"));
+
+        if (!asUserId.HasValue || asUserId.Value == currentUser.Id)
+        {
+            return (currentUser, null);
+        }
+
+        if (!User.IsInRole("admin"))
+        {
+            return (null, Forbid());
+        }
+
+        var targetUser = await db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == asUserId.Value);
+
+        if (targetUser == null)
+        {
+            return (null, NotFound("Target user not found"));
+        }
+
+        return (targetUser, null);
     }
 
     private static OrderViewDto MapOrder(Order order) =>

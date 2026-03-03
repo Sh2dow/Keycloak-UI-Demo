@@ -15,6 +15,7 @@ import {
     Textarea,
     Title,
 } from "@mantine/core";
+import { useSearchParams } from "react-router-dom";
 import { getAccessToken } from "../../providers/keycloakAuthProvider";
 
 const API_URL = "http://localhost:5274";
@@ -40,7 +41,12 @@ type TaskItem = {
 };
 
 export function TasksPage() {
-    const listQuery = useList<TaskItem>({ resource: "tasks" });
+    const [searchParams] = useSearchParams();
+    const asUserId = searchParams.get("asUserId") ?? undefined;
+    const listQuery = useList<TaskItem>({
+        resource: "tasks",
+        meta: asUserId ? { asUserId } : undefined,
+    });
     const invalidate = useInvalidate();
     const { mutateAsync: createTask, isLoading: isCreating } = useCreate();
     const { mutateAsync: updateTask, isLoading: isUpdating } = useUpdate();
@@ -67,6 +73,7 @@ export function TasksPage() {
 
         await createTask({
             resource: "tasks",
+            meta: asUserId ? { asUserId } : undefined,
             values: {
                 title: title.trim(),
                 description: description.trim() || null,
@@ -89,6 +96,7 @@ export function TasksPage() {
         await updateTask({
             resource: "tasks",
             id: task.id,
+            meta: asUserId ? { asUserId } : undefined,
             values: {
                 title: task.title,
                 description: task.description ?? null,
@@ -104,6 +112,7 @@ export function TasksPage() {
         await deleteTask({
             resource: "tasks",
             id,
+            meta: asUserId ? { asUserId } : undefined,
         });
         await refresh();
     };
@@ -117,6 +126,7 @@ export function TasksPage() {
             `${API_URL}/api/tasks/${taskId}/comments`,
             { content },
             {
+                params: asUserId ? { asUserId } : undefined,
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             },
         );
@@ -128,6 +138,11 @@ export function TasksPage() {
     return (
         <Stack>
             <Title order={2}>Task Tracker</Title>
+            {asUserId && (
+                <Text c="dimmed" size="sm">
+                    Explore mode: acting on user {asUserId}
+                </Text>
+            )}
             <Text c="dimmed" size="sm">
                 Task list endpoint uses EF Core AsNoTrackingWithIdentityResolution to return task/comment graphs.
             </Text>

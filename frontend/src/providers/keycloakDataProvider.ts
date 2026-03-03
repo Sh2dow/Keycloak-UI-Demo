@@ -41,6 +41,29 @@ const toListRecord = (value: unknown, index: number): ListRecord => {
     };
 };
 
+const getAsUserId = (resource: string, meta: unknown): string | undefined => {
+    if (resource !== "orders" && resource !== "tasks") {
+        return undefined;
+    }
+
+    if (!meta || typeof meta !== "object") {
+        return undefined;
+    }
+
+    const asUserId = (meta as { asUserId?: unknown }).asUserId;
+    if (typeof asUserId !== "string" || asUserId.trim().length === 0) {
+        return undefined;
+    }
+
+    return asUserId.trim();
+};
+
+const withAsUserId = (endpoint: string, asUserId?: string): string => {
+    if (!asUserId) return endpoint;
+    const separator = endpoint.includes("?") ? "&" : "?";
+    return `${endpoint}${separator}asUserId=${encodeURIComponent(asUserId)}`;
+};
+
 const normalizeList = (resource: string, payload: unknown): ListRecord[] => {
     if (!Array.isArray(payload)) {
         return [];
@@ -108,7 +131,7 @@ const readClientsFromToken = async (): Promise<ListRecord[]> => {
     }));
 };
 
-const fetchList = async (apiUrl: string, resource: string): Promise<ListRecord[]> => {
+const fetchList = async (apiUrl: string, resource: string, asUserId?: string): Promise<ListRecord[]> => {
     if (resource === "groups") {
         return readGroupsFromToken();
     }
@@ -123,6 +146,7 @@ const fetchList = async (apiUrl: string, resource: string): Promise<ListRecord[]
     }
 
     const response = await axios.get(`${apiUrl}${endpoint}`, {
+        params: asUserId ? { asUserId } : undefined,
         headers: await authHeaders(),
     });
 
@@ -134,7 +158,8 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
     getList: async <TData extends BaseRecord = BaseRecord>(
         params: GetListParams,
     ): Promise<GetListResponse<TData>> => {
-        const normalized = (await fetchList(apiUrl, params.resource)) as TData[];
+        const asUserId = getAsUserId(params.resource, params.meta);
+        const normalized = (await fetchList(apiUrl, params.resource, asUserId)) as TData[];
         return {
             data: normalized,
             total: normalized.length,
@@ -144,7 +169,8 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
         params: GetOneParams,
     ): Promise<GetOneResponse<TData>> => {
         const { resource, id } = params;
-        const list = (await fetchList(apiUrl, resource)) as TData[];
+        const asUserId = getAsUserId(resource, params.meta);
+        const list = (await fetchList(apiUrl, resource, asUserId)) as TData[];
 
         const found = list.find((item) => String(item.id) === String(id));
         if (!found) {
@@ -158,12 +184,13 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
     ): Promise<CreateResponse<TData>> => {
         const { resource, variables } = params;
         const endpoint = endpointMap[resource as keyof typeof endpointMap];
+        const asUserId = getAsUserId(resource, params.meta);
 
         if (!endpoint || resource === "roles") {
             throw new Error(`Create is not implemented for resource '${resource}'`);
         }
 
-        const response = await axios.post(`${apiUrl}${endpoint}`, variables, {
+        const response = await axios.post(`${apiUrl}${withAsUserId(endpoint, asUserId)}`, variables, {
             headers: await authHeaders(),
         });
 
@@ -175,12 +202,13 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
     ): Promise<UpdateResponse<TData>> => {
         const { resource, id, variables } = params;
         const endpoint = endpointMap[resource as keyof typeof endpointMap];
+        const asUserId = getAsUserId(resource, params.meta);
 
         if (!endpoint || resource === "roles") {
             throw new Error(`Update is not implemented for resource '${resource}'`);
         }
 
-        const response = await axios.put(`${apiUrl}${endpoint}/${id}`, variables, {
+        const response = await axios.put(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, variables, {
             headers: await authHeaders(),
         });
 
@@ -192,12 +220,13 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
     ): Promise<DeleteOneResponse<TData>> => {
         const { resource, id } = params;
         const endpoint = endpointMap[resource as keyof typeof endpointMap];
+        const asUserId = getAsUserId(resource, params.meta);
 
         if (!endpoint || resource === "roles") {
             throw new Error(`Delete is not implemented for resource '${resource}'`);
         }
 
-        await axios.delete(`${apiUrl}${endpoint}/${id}`, {
+        await axios.delete(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, {
             headers: await authHeaders(),
         });
 
