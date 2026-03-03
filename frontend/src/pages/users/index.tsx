@@ -50,11 +50,10 @@ export function UsersPage() {
     const [editUsername, setEditUsername] = useState("");
     const [editEmail, setEditEmail] = useState("");
 
-    const users: AppUser[] = listQuery.data?.data ?? [];
-    const sortedUsers = useMemo(
-        () => [...users].sort((a, b) => a.username.localeCompare(b.username)),
-        [users],
-    );
+    const sortedUsers = useMemo(() => {
+        const users: AppUser[] = listQuery.data?.data ?? [];
+        return [...users].sort((a, b) => a.username.localeCompare(b.username));
+    }, [listQuery.data?.data]);
 
     const refresh = async () => {
         await invalidate({

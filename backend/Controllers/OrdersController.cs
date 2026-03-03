@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using backend.Data;
+using backend.Dtos;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,34 +12,6 @@ namespace backend.Controllers;
 [Route("api/orders")]
 public class OrdersController : ControllerBase
 {
-    public sealed record OrderViewDto(
-        Guid Id,
-        string OrderType,
-        decimal TotalAmount,
-        string Status,
-        DateTime CreatedAtUtc,
-        string? DownloadUrl,
-        string? ShippingAddress,
-        string? TrackingNumber
-    );
-
-    public sealed record CreateDigitalOrderRequest(decimal TotalAmount, string DownloadUrl);
-    public sealed record CreatePhysicalOrderRequest(decimal TotalAmount, string ShippingAddress, string? TrackingNumber);
-    public sealed record CreateOrderRequest(
-        string OrderType,
-        decimal TotalAmount,
-        string? DownloadUrl,
-        string? ShippingAddress,
-        string? TrackingNumber
-    );
-    public sealed record UpdateOrderRequest(
-        decimal TotalAmount,
-        string Status,
-        string? DownloadUrl,
-        string? ShippingAddress,
-        string? TrackingNumber
-    );
-
     [Authorize]
     [HttpGet]
     public async Task<IActionResult> List([FromServices] AppDbContext db)

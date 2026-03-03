@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using backend.Data;
+using backend.Dtos;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,29 +12,6 @@ namespace backend.Controllers;
 [Route("api/users")]
 public class UsersController : ControllerBase
 {
-    public sealed record CreateUserRequest(string Subject, string Username, string? Email);
-    public sealed record UpdateUserRequest(string Username, string? Email);
-
-    public sealed record OrderViewDto(
-        Guid Id,
-        string OrderType,
-        decimal TotalAmount,
-        string Status,
-        DateTime CreatedAtUtc,
-        string? DownloadUrl,
-        string? ShippingAddress,
-        string? TrackingNumber
-    );
-
-    public sealed record UserWithOrdersDto(
-        Guid Id,
-        string Subject,
-        string Username,
-        string? Email,
-        DateTime CreatedAtUtc,
-        IReadOnlyList<OrderViewDto> Orders
-    );
-
     [Authorize]
     [HttpGet]
     public async Task<IActionResult> List([FromServices] AppDbContext db)

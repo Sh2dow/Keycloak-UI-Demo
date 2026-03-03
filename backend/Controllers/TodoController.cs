@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using backend.Data;
+using backend.Dtos;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,8 +42,6 @@ public class TodoController : ControllerBase
 
         return Ok(items);
     }
-
-    public record CreateTodoRequest(string Title);
 
     [Authorize]
     [HttpPost]
