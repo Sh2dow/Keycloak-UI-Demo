@@ -18,13 +18,38 @@ public class UsersController : ControllerBase
     {
         await GetOrCreateCurrentUser(db);
 
-        var users = await db.AppUsers
+        // push mapping to SQL and avoid materializing entity graph at all
+        // Benefits:
+        // No full entity graph in memory
+        // Less RAM
+        // Faster
+        // No need for Include
+        // Still no tracking
+        var result = await db.AppUsers
             .AsNoTracking()
-            .Include(x => x.Orders)
             .OrderBy(x => x.Username)
+            .Select(x => new UserWithOrdersDto(
+                x.Id,
+                x.Subject,
+                x.Username,
+                x.Email,
+                x.CreatedAtUtc,
+                x.Orders
+                    .OrderByDescending(o => o.CreatedAtUtc)
+                    .Select(o => new OrderViewDto(
+                        o.Id,
+                        o is DigitalOrder ? "digital" : o is PhysicalOrder ? "physical" : "unknown",
+                        o.TotalAmount,
+                        o.Status,
+                        o.CreatedAtUtc,
+                        o is DigitalOrder ? ((DigitalOrder)o).DownloadUrl : null,
+                        o is PhysicalOrder ? ((PhysicalOrder)o).ShippingAddress : null,
+                        o is PhysicalOrder ? ((PhysicalOrder)o).TrackingNumber : null
+                    ))
+                    .ToList()
+            ))
             .ToListAsync();
 
-        var result = users.Select(MapUser).ToList();
         return Ok(result);
     }
 

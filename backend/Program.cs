@@ -50,7 +50,7 @@ builder.Services.AddAuthentication(options =>
         {
             OnMessageReceived = ctx =>
             {
-                if (ctx.Request.Path.StartsWithSegments("/api/todos"))
+                if (ctx.Request.Path.StartsWithSegments("/api/tasks"))
                 {
                     var hasAuthHeader = ctx.Request.Headers.Authorization.Count > 0;
                     Console.WriteLine($"JWT OnMessageReceived {ctx.Request.Method} {ctx.Request.Path} AuthorizationHeaderPresent={hasAuthHeader}");

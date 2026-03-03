@@ -14,4 +14,6 @@ public class AppUser
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+    public ICollection<TaskComment> TaskComments { get; set; } = new List<TaskComment>();
 }

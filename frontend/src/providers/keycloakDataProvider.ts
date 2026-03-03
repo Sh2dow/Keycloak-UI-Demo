@@ -15,14 +15,15 @@ import type {
 } from "@refinedev/core";
 import { getAccessToken, keycloakUserManager } from "./keycloakAuthProvider";
 
-type ResourceName = "users" | "orders" | "roles" | "groups" | "clients";
+type ResourceName = "users" | "orders" | "tasks" | "roles" | "groups" | "clients";
 
 type ListRecord = BaseRecord & Record<string, unknown>;
 
 const endpointMap: Record<Exclude<ResourceName, "groups" | "clients">, string> = {
     users: "/api/users",
     orders: "/api/orders",
-    roles: "/api/todos/debugroles",
+    tasks: "/api/tasks",
+    roles: "/api/tasks/debugroles",
 };
 
 const toListRecord = (value: unknown, index: number): ListRecord => {

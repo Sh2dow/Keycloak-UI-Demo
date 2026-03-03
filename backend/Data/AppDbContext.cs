@@ -10,13 +10,14 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<TaskComment> TaskComments => Set<TaskComment>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<Order> Orders => Set<Order>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<TodoItem>(entity =>
+        modelBuilder.Entity<TaskItem>(entity =>
         {
             entity.HasKey(x => x.Id);
 
@@ -24,11 +25,45 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(200);
 
-            entity.Property(x => x.UserSub)
-                .IsRequired()
-                .HasMaxLength(64);
+            entity.Property(x => x.Description)
+                .HasMaxLength(2000);
 
-            entity.HasIndex(x => x.UserSub);
+            entity.Property(x => x.Status)
+                .IsRequired()
+                .HasMaxLength(32);
+
+            entity.Property(x => x.Priority)
+                .IsRequired()
+                .HasMaxLength(32);
+
+            entity.HasIndex(x => x.UserId);
+
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.Tasks)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(x => x.Comments)
+                .WithOne(x => x.Task)
+                .HasForeignKey(x => x.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskComment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Content)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            entity.HasIndex(x => x.TaskId);
+            entity.HasIndex(x => x.AuthorId);
+
+            entity.HasOne(x => x.Author)
+                .WithMany(x => x.TaskComments)
+                .HasForeignKey(x => x.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<AppUser>(entity =>
