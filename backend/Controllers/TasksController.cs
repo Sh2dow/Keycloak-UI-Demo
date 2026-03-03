@@ -2,6 +2,8 @@ using System.Security.Claims;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
+using backend.Requests.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,48 +14,51 @@ namespace backend.Controllers;
 [Route("api/tasks")]
 public class TasksController : ControllerBase
 {
+    private readonly IMediator _mediator;
+
+    public TasksController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
     [Authorize]
     [HttpGet("debugroles")]
-    public IActionResult DebugRoles() =>
-        Ok(User.Claims
+    public async Task<IActionResult> DebugRoles(CancellationToken ct = default)
+    {
+        var roles = User.Claims
             .Where(c => c.Type == ClaimTypes.Role)
-            .Select(c => c.Value));
+            .Select(c => c.Value)
+            .ToList();
+
+        var result = await _mediator.Send(new DebugRolesQuery(roles), ct);
+        return Ok(result);
+    }
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> List([FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> List([FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null, CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        // Demonstrates loading a user/task/comment graph without tracking while preserving
-        // entity identity for repeated references (e.g. same author on multiple comments).
-        var tasks = await db.Tasks
-            .AsNoTrackingWithIdentityResolution()
-            .Where(x => x.UserId == user!.Id)
-            .Include(x => x.Comments)
-            .ThenInclude(x => x.Author)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ToListAsync();
-
-        return Ok(tasks.Select(MapTask).ToList());
+        var tasks = await _mediator.Send(new GetTasksQuery(user!.Id), ct);
+        return Ok(tasks);
     }
 
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> GetOne(
+        Guid id,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var task = await db.Tasks
-            .AsNoTrackingWithIdentityResolution()
-            .Include(x => x.Comments)
-            .ThenInclude(x => x.Author)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
-
+        var task = await _mediator.Send(new GetTaskByIdQuery(id, user!.Id), ct);
         if (task == null) return NotFound();
-        return Ok(MapTask(task));
+        return Ok(task);
     }
 
     [Authorize]
@@ -61,26 +66,19 @@ public class TasksController : ControllerBase
     public async Task<IActionResult> Create(
         [FromBody] CreateTaskRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Title)) return BadRequest("Title is required");
 
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var task = new TaskItem
-        {
-            UserId = user!.Id,
-            Title = req.Title.Trim(),
-            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            Status = NormalizeStatus(req.Status),
-            Priority = NormalizePriority(req.Priority)
-        };
-
-        db.Tasks.Add(task);
-        await db.SaveChangesAsync();
-
-        return Ok(MapTask(task));
+        var task = await _mediator.Send(
+            new CreateTaskCommand(user!.Id, req.Title, req.Description, req.Status, req.Priority),
+            ct
+        );
+        return Ok(task);
     }
 
     [Authorize]
@@ -89,41 +87,33 @@ public class TasksController : ControllerBase
         Guid id,
         [FromBody] UpdateTaskRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
+        var task = await _mediator.Send(
+            new UpdateTaskCommand(id, user!.Id, req.Title, req.Description, req.Status, req.Priority),
+            ct
+        );
         if (task == null) return NotFound();
-
-        if (!string.IsNullOrWhiteSpace(req.Title))
-        {
-            task.Title = req.Title.Trim();
-        }
-
-        task.Description = req.Description?.Trim();
-        task.Status = NormalizeStatus(req.Status);
-        task.Priority = NormalizePriority(req.Priority);
-        task.UpdatedAtUtc = DateTime.UtcNow;
-
-        await db.SaveChangesAsync();
-        return Ok(MapTask(task));
+        return Ok(task);
     }
 
     [Authorize]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var affected = await db.Tasks
-            .Where(x => x.Id == id && x.UserId == user!.Id)
-            .ExecuteDeleteAsync();
-
-        if (affected == 0)
-            return NotFound();
+        var deleted = await _mediator.Send(new DeleteTaskCommand(id, user!.Id), ct);
+        if (!deleted) return NotFound();
 
         return Ok(new { id });
     }
@@ -134,38 +124,17 @@ public class TasksController : ControllerBase
         Guid id,
         [FromBody] AddTaskCommentRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Content)) return BadRequest("Content is required");
 
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
-        if (task == null) return NotFound();
-
-        var comment = new TaskComment
-        {
-            TaskId = task.Id,
-            AuthorId = user!.Id,
-            Content = req.Content.Trim()
-        };
-
-        db.TaskComments.Add(comment);
-        await db.SaveChangesAsync();
-
-        var created = await db.TaskComments
-            .AsNoTracking()
-            .Include(x => x.Author)
-            .FirstAsync(x => x.Id == comment.Id);
-
-        return Ok(new TaskCommentDto(
-            created.Id,
-            created.AuthorId,
-            created.Author.Username,
-            created.Content,
-            created.CreatedAtUtc
-        ));
+        var comment = await _mediator.Send(new AddTaskCommentCommand(id, user!.Id, req.Content), ct);
+        if (comment == null) return NotFound();
+        return Ok(comment);
     }
 
     private async Task<AppUser?> GetOrCreateCurrentUser(AppDbContext db)
@@ -215,49 +184,4 @@ public class TasksController : ControllerBase
         return (targetUser, null);
     }
 
-    private static string NormalizeStatus(string? status)
-    {
-        var normalized = status?.Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "todo" => "todo",
-            "in-progress" => "in-progress",
-            "done" => "done",
-            _ => "todo"
-        };
-    }
-
-    private static string NormalizePriority(string? priority)
-    {
-        var normalized = priority?.Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "low" => "low",
-            "medium" => "medium",
-            "high" => "high",
-            _ => "medium"
-        };
-    }
-
-    private static TaskItemDto MapTask(TaskItem task) =>
-        new(
-            task.Id,
-            task.UserId,
-            task.Title,
-            task.Description,
-            task.Status,
-            task.Priority,
-            task.CreatedAtUtc,
-            task.UpdatedAtUtc,
-            task.Comments
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .Select(x => new TaskCommentDto(
-                    x.Id,
-                    x.AuthorId,
-                    x.Author.Username,
-                    x.Content,
-                    x.CreatedAtUtc
-                ))
-                .ToList()
-        );
 }

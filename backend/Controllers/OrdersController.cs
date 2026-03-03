@@ -2,6 +2,8 @@ using System.Security.Claims;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
+using backend.Requests.Orders;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,36 +14,41 @@ namespace backend.Controllers;
 [Route("api/orders")]
 public class OrdersController : ControllerBase
 {
+    private readonly IMediator _mediator;
+
+    public OrdersController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> List([FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> List(
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var orders = await db.Orders
-            .AsNoTracking()
-            .Where(x => x.UserId == user!.Id)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ToListAsync();
-
-        return Ok(orders.Select(MapOrder).ToList());
+        var orders = await _mediator.Send(new GetOrdersQuery(user!.Id), ct);
+        return Ok(orders);
     }
 
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetOne(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> GetOne(
+        Guid id,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var order = await db.Orders
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
-
+        var order = await _mediator.Send(new GetOrderByIdQuery(id, user!.Id), ct);
         if (order == null) return NotFound();
-
-        return Ok(MapOrder(order));
+        return Ok(order);
     }
 
     [Authorize]
@@ -49,18 +56,29 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Create(
         [FromBody] CreateOrderRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var orderType = req.OrderType.Trim().ToLowerInvariant();
 
         if (orderType == "digital")
         {
-            return await CreateDigital(new CreateDigitalOrderRequest(req.TotalAmount, req.DownloadUrl ?? string.Empty), db, asUserId);
+            return await CreateDigital(
+                new CreateDigitalOrderRequest(req.TotalAmount, req.DownloadUrl ?? string.Empty),
+                db,
+                asUserId,
+                ct
+            );
         }
 
         if (orderType == "physical")
         {
-            return await CreatePhysical(new CreatePhysicalOrderRequest(req.TotalAmount, req.ShippingAddress ?? string.Empty, req.TrackingNumber), db, asUserId);
+            return await CreatePhysical(
+                new CreatePhysicalOrderRequest(req.TotalAmount, req.ShippingAddress ?? string.Empty, req.TrackingNumber),
+                db,
+                asUserId,
+                ct
+            );
         }
 
         return BadRequest("OrderType must be either 'digital' or 'physical'");
@@ -71,7 +89,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> CreateDigital(
         [FromBody] CreateDigitalOrderRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.DownloadUrl)) return BadRequest("DownloadUrl is required");
@@ -79,18 +98,11 @@ public class OrdersController : ControllerBase
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var order = new DigitalOrder
-        {
-            UserId = user!.Id,
-            TotalAmount = req.TotalAmount,
-            DownloadUrl = req.DownloadUrl.Trim(),
-            Status = "Created"
-        };
-
-        db.Orders.Add(order);
-        await db.SaveChangesAsync();
-
-        return Ok(MapOrder(order));
+        var order = await _mediator.Send(
+            new CreateDigitalOrderCommand(user!.Id, req.TotalAmount, req.DownloadUrl),
+            ct
+        );
+        return Ok(order);
     }
 
     [Authorize]
@@ -99,7 +111,8 @@ public class OrdersController : ControllerBase
         Guid id,
         [FromBody] UpdateOrderRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.Status)) return BadRequest("Status is required");
@@ -107,46 +120,28 @@ public class OrdersController : ControllerBase
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
-
-        if (order == null) return NotFound();
-
-        order.TotalAmount = req.TotalAmount;
-        order.Status = req.Status.Trim();
-
-        switch (order)
-        {
-            case DigitalOrder digital:
-                if (string.IsNullOrWhiteSpace(req.DownloadUrl)) return BadRequest("DownloadUrl is required for digital orders");
-                digital.DownloadUrl = req.DownloadUrl.Trim();
-                break;
-            case PhysicalOrder physical:
-                if (string.IsNullOrWhiteSpace(req.ShippingAddress)) return BadRequest("ShippingAddress is required for physical orders");
-                physical.ShippingAddress = req.ShippingAddress.Trim();
-                physical.TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim();
-                break;
-        }
-
-        await db.SaveChangesAsync();
-
-        return Ok(MapOrder(order));
+        var result = await _mediator.Send(
+            new UpdateOrderCommand(id, user!.Id, req.TotalAmount, req.Status, req.DownloadUrl, req.ShippingAddress, req.TrackingNumber),
+            ct
+        );
+        if (result.NotFound) return NotFound();
+        if (result.ValidationError != null) return BadRequest(result.ValidationError);
+        return Ok(result.Order);
     }
 
     [Authorize]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db, [FromQuery] Guid? asUserId = null)
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromServices] AppDbContext db,
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == user!.Id);
-
-        if (order == null) return NotFound();
-
-        db.Orders.Remove(order);
-        await db.SaveChangesAsync();
+        var deleted = await _mediator.Send(new DeleteOrderCommand(id, user!.Id), ct);
+        if (!deleted) return NotFound();
 
         return Ok(new { id });
     }
@@ -156,7 +151,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> CreatePhysical(
         [FromBody] CreatePhysicalOrderRequest req,
         [FromServices] AppDbContext db,
-        [FromQuery] Guid? asUserId = null)
+        [FromQuery] Guid? asUserId = null,
+        CancellationToken ct = default)
     {
         if (req.TotalAmount <= 0) return BadRequest("TotalAmount must be greater than zero");
         if (string.IsNullOrWhiteSpace(req.ShippingAddress)) return BadRequest("ShippingAddress is required");
@@ -164,19 +160,11 @@ public class OrdersController : ControllerBase
         var (user, error) = await ResolveEffectiveUser(db, asUserId);
         if (error != null) return error;
 
-        var order = new PhysicalOrder
-        {
-            UserId = user!.Id,
-            TotalAmount = req.TotalAmount,
-            ShippingAddress = req.ShippingAddress.Trim(),
-            TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim(),
-            Status = "Created"
-        };
-
-        db.Orders.Add(order);
-        await db.SaveChangesAsync();
-
-        return Ok(MapOrder(order));
+        var order = await _mediator.Send(
+            new CreatePhysicalOrderCommand(user!.Id, req.TotalAmount, req.ShippingAddress, req.TrackingNumber),
+            ct
+        );
+        return Ok(order);
     }
 
     private async Task<AppUser?> GetOrCreateCurrentUser(AppDbContext db)
@@ -226,38 +214,4 @@ public class OrdersController : ControllerBase
         return (targetUser, null);
     }
 
-    private static OrderViewDto MapOrder(Order order) =>
-        order switch
-        {
-            DigitalOrder digital => new(
-                digital.Id,
-                "digital",
-                digital.TotalAmount,
-                digital.Status,
-                digital.CreatedAtUtc,
-                digital.DownloadUrl,
-                null,
-                null
-            ),
-            PhysicalOrder physical => new(
-                physical.Id,
-                "physical",
-                physical.TotalAmount,
-                physical.Status,
-                physical.CreatedAtUtc,
-                null,
-                physical.ShippingAddress,
-                physical.TrackingNumber
-            ),
-            _ => new(
-                order.Id,
-                "unknown",
-                order.TotalAmount,
-                order.Status,
-                order.CreatedAtUtc,
-                null,
-                null,
-                null
-            )
-        };
 }
