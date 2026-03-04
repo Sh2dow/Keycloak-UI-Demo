@@ -1,6 +1,6 @@
+using backend.Application.Abstractions;
 using backend.Dtos;
-using MediatR;
 
 namespace backend.Requests.Tasks;
 
-public sealed record GetTaskByIdQuery(Guid Id, Guid UserId) : IRequest<TaskItemDto?>;
+public sealed record GetTaskByIdQuery(Guid Id) : IQuery<TaskItemDto?>;

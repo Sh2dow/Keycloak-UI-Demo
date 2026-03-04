@@ -1,6 +1,6 @@
+using backend.Application.Abstractions;
 using backend.Dtos;
-using MediatR;
 
 namespace backend.Requests.Tasks;
 
-public sealed record GetTasksQuery(Guid UserId) : IRequest<IReadOnlyList<TaskItemDto>>;
+public sealed record GetTasksQuery(int PageNumber = 1, int PageSize = 20) : IQuery<IReadOnlyList<TaskItemDto>>;

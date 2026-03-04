@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
@@ -9,17 +10,20 @@ namespace backend.Handlers.Orders;
 public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, OrderViewDto>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public CreatePhysicalOrderHandler(AppDbContext db)
+    public CreatePhysicalOrderHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<OrderViewDto> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = new PhysicalOrder
         {
-            UserId = req.UserId,
+            UserId = userId,
             TotalAmount = req.TotalAmount,
             ShippingAddress = req.ShippingAddress.Trim(),
             TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim(),

@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
@@ -10,18 +11,26 @@ namespace backend.Handlers.Orders;
 public sealed class GetOrdersHandler : IRequestHandler<GetOrdersQuery, IReadOnlyList<OrderViewDto>>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public GetOrdersHandler(AppDbContext db)
+    public GetOrdersHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<IReadOnlyList<OrderViewDto>> Handle(GetOrdersQuery req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
+        var pageNumber = Math.Max(req.PageNumber, 1);
+        var pageSize = Math.Clamp(req.PageSize, 1, 100);
+
         var orders = await _db.Orders
             .AsNoTracking()
-            .Where(x => x.UserId == req.UserId)
+            .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAtUtc)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
         return orders.Select(MapOrder).ToList();

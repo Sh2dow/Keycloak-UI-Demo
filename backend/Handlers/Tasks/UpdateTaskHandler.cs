@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Requests.Tasks;
@@ -9,16 +10,19 @@ namespace backend.Handlers.Tasks;
 public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, TaskItemDto?>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public UpdateTaskHandler(AppDbContext db)
+    public UpdateTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<TaskItemDto?> Handle(UpdateTaskCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var task = await _db.Tasks
-            .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == req.UserId, ct);
+            .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
         if (task == null) return null;
 
         if (!string.IsNullOrWhiteSpace(req.Title))

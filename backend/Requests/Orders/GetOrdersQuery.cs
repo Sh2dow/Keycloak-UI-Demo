@@ -1,6 +1,6 @@
+using backend.Application.Abstractions;
 using backend.Dtos;
-using MediatR;
 
 namespace backend.Requests.Orders;
 
-public sealed record GetOrdersQuery(Guid UserId) : IRequest<IReadOnlyList<OrderViewDto>>;
+public sealed record GetOrdersQuery(int PageNumber = 1, int PageSize = 20) : IQuery<IReadOnlyList<OrderViewDto>>;

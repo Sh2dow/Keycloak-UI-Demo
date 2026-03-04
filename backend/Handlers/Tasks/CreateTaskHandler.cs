@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Requests.Tasks;
@@ -8,17 +9,20 @@ namespace backend.Handlers.Tasks;
 public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, TaskItemDto>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public CreateTaskHandler(AppDbContext db)
+    public CreateTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<TaskItemDto> Handle(CreateTaskCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var task = new Models.TaskItem
         {
-            UserId = req.UserId,
+            UserId = userId,
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
             Status = NormalizeStatus(req.Status),

@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
@@ -10,16 +11,19 @@ namespace backend.Handlers.Orders;
 public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, UpdateOrderResult>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public UpdateOrderHandler(AppDbContext db)
+    public UpdateOrderHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<UpdateOrderResult> Handle(UpdateOrderCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = await _db.Orders
-            .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == req.UserId, ct);
+            .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
         if (order == null) return new UpdateOrderResult(true, null, null);
 
         order.TotalAmount = req.TotalAmount;

@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Requests.Tasks;
 using MediatR;
@@ -8,16 +9,19 @@ namespace backend.Handlers.Tasks;
 public sealed class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, bool>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public DeleteTaskHandler(AppDbContext db)
+    public DeleteTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<bool> Handle(DeleteTaskCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var affected = await _db.Tasks
-            .Where(x => x.Id == req.Id && x.UserId == req.UserId)
+            .Where(x => x.Id == req.Id && x.UserId == userId)
             .ExecuteDeleteAsync(ct);
 
         return affected > 0;

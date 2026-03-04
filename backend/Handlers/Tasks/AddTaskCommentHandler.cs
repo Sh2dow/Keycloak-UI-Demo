@@ -1,3 +1,4 @@
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
@@ -10,22 +11,25 @@ namespace backend.Handlers.Tasks;
 public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, TaskCommentDto?>
 {
     private readonly AppDbContext _db;
+    private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public AddTaskCommentHandler(AppDbContext db)
+    public AddTaskCommentHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
+        _effectiveUser = effectiveUser;
     }
 
     public async Task<TaskCommentDto?> Handle(AddTaskCommentCommand req, CancellationToken ct)
     {
+        var userId = await _effectiveUser.GetUserIdAsync(ct);
         var taskExists = await _db.Tasks
-            .AnyAsync(x => x.Id == req.TaskId && x.UserId == req.UserId, ct);
+            .AnyAsync(x => x.Id == req.TaskId && x.UserId == userId, ct);
         if (!taskExists) return null;
 
         var comment = new TaskComment
         {
             TaskId = req.TaskId,
-            AuthorId = req.UserId,
+            AuthorId = userId,
             Content = req.Content.Trim()
         };
 

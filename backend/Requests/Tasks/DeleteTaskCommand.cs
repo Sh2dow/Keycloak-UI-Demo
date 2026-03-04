@@ -1,5 +1,5 @@
-using MediatR;
+using backend.Application.Abstractions;
 
 namespace backend.Requests.Tasks;
 
-public sealed record DeleteTaskCommand(Guid Id, Guid UserId) : IRequest<bool>;
+public sealed record DeleteTaskCommand(Guid Id) : ICommand<bool>;

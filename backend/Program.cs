@@ -1,18 +1,36 @@
 using System.Security.Claims;
+using backend.Application.Behaviors;
+using backend.Application.Exceptions;
+using backend.Application.Security;
+using backend.Application.Users;
+using backend.Data;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using backend.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly)
 );
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
+builder.Services.AddTransient<IClaimsTransformation, KeycloakRoleClaimsTransformation>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
@@ -52,56 +70,31 @@ builder.Services.AddAuthentication(options =>
 
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = ctx =>
-            {
-                if (ctx.Request.Path.StartsWithSegments("/api/tasks"))
-                {
-                    var hasAuthHeader = ctx.Request.Headers.Authorization.Count > 0;
-                    Console.WriteLine($"JWT OnMessageReceived {ctx.Request.Method} {ctx.Request.Path} AuthorizationHeaderPresent={hasAuthHeader}");
-                }
-
-                return Task.CompletedTask;
-            },
             OnAuthenticationFailed = ctx =>
             {
-                Console.WriteLine($"JWT OnAuthenticationFailed: {ctx.Exception.GetType().Name}: {ctx.Exception.Message}");
+                var logger = ctx.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtBearer");
+
+                logger.LogWarning(
+                    ctx.Exception,
+                    "JWT authentication failed for {Path}",
+                    ctx.Request.Path
+                );
                 return Task.CompletedTask;
             },
             OnChallenge = ctx =>
             {
-                Console.WriteLine($"JWT OnChallenge: error={ctx.Error}, description={ctx.ErrorDescription}");
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = ctx =>
-            {
-                var principal = ctx.Principal;
-                if (principal == null) return Task.CompletedTask;
+                var logger = ctx.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtBearer");
 
-                var identity = principal.Identity as ClaimsIdentity;
-                if (identity == null) return Task.CompletedTask;
-
-                var realmAccess = principal.FindFirst("realm_access")?.Value;
-                if (realmAccess == null) return Task.CompletedTask;
-
-                using var doc = System.Text.Json.JsonDocument.Parse(realmAccess);
-
-                if (doc.RootElement.TryGetProperty("roles", out var roles))
-                {
-                    foreach (var role in roles.EnumerateArray())
-                    {
-                        var roleValue = role.GetString();
-                        if (!string.IsNullOrWhiteSpace(roleValue))
-                        {
-                            identity.AddClaim(new Claim(ClaimTypes.Role, roleValue));
-                            Console.WriteLine($"ROLE ADDED: {roleValue}");
-                        }
-                    }
-                }
-
-                var tokenIssuer = principal.FindFirst("iss")?.Value;
-                var tokenSub = principal.FindFirst("sub")?.Value;
-                Console.WriteLine($"JWT OnTokenValidated: iss={tokenIssuer}, sub={tokenSub}");
-
+                logger.LogDebug(
+                    "JWT challenge for {Path}. Error={Error}, Description={Description}",
+                    ctx.Request.Path,
+                    ctx.Error,
+                    ctx.ErrorDescription
+                );
                 return Task.CompletedTask;
             }
         };
@@ -121,6 +114,7 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
+app.UseMiddleware<ProblemDetailsExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
