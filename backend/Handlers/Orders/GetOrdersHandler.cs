@@ -1,7 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
-using backend.Models;
+using backend.Mappers;
 using backend.Requests.Orders;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -33,41 +33,6 @@ public sealed class GetOrdersHandler : IRequestHandler<GetOrdersQuery, IReadOnly
             .Take(pageSize)
             .ToListAsync(ct);
 
-        return orders.Select(MapOrder).ToList();
+        return orders.Select(OrderMapper.ToDto).ToList();
     }
-
-    private static OrderViewDto MapOrder(Order order) =>
-        order switch
-        {
-            DigitalOrder digital => new(
-                digital.Id,
-                "digital",
-                digital.TotalAmount,
-                digital.Status,
-                digital.CreatedAtUtc,
-                digital.DownloadUrl,
-                null,
-                null
-            ),
-            PhysicalOrder physical => new(
-                physical.Id,
-                "physical",
-                physical.TotalAmount,
-                physical.Status,
-                physical.CreatedAtUtc,
-                null,
-                physical.ShippingAddress,
-                physical.TrackingNumber
-            ),
-            _ => new(
-                order.Id,
-                "unknown",
-                order.TotalAmount,
-                order.Status,
-                order.CreatedAtUtc,
-                null,
-                null,
-                null
-            )
-        };
 }

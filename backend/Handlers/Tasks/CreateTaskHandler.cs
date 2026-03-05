@@ -1,6 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
+using backend.Mappers;
 using backend.Requests.Tasks;
 using MediatR;
 
@@ -20,29 +21,17 @@ public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, TaskI
     public async Task<TaskItemDto> Handle(CreateTaskCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
-        var task = new Models.TaskItem
-        {
-            UserId = userId,
-            Title = req.Title.Trim(),
-            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            Status = NormalizeStatus(req.Status),
-            Priority = NormalizePriority(req.Priority)
-        };
+        var task = req.ToEntity();
+        task.UserId = userId;
+        task.Title = req.Title.Trim();
+        task.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
+        task.Status = NormalizeStatus(req.Status);
+        task.Priority = NormalizePriority(req.Priority);
 
         _db.Tasks.Add(task);
         await _db.SaveChangesAsync(ct);
 
-        return new TaskItemDto(
-            task.Id,
-            task.UserId,
-            task.Title,
-            task.Description,
-            task.Status,
-            task.Priority,
-            task.CreatedAtUtc,
-            task.UpdatedAtUtc,
-            []
-        );
+        return task.ToDto() with { Comments = [] };
     }
 
     private static string NormalizeStatus(string? status)

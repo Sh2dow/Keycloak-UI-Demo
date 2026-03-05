@@ -1,7 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
-using backend.Models;
+using backend.Mappers;
 using backend.Requests.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -26,37 +26,14 @@ public sealed class GetTasksHandler : IRequestHandler<GetTasksQuery, IReadOnlyLi
         var pageSize = Math.Clamp(req.PageSize, 1, 100);
 
         var tasks = await _db.Tasks
-            .AsNoTrackingWithIdentityResolution()
+            .AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Include(x => x.Comments)
-            .ThenInclude(x => x.Author)
             .OrderByDescending(x => x.CreatedAtUtc)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
+            .ProjectToTaskItemDto()
             .ToListAsync(ct);
 
-        return tasks.Select(MapTask).ToList();
+        return tasks;
     }
-
-    private static TaskItemDto MapTask(TaskItem task) =>
-        new(
-            task.Id,
-            task.UserId,
-            task.Title,
-            task.Description,
-            task.Status,
-            task.Priority,
-            task.CreatedAtUtc,
-            task.UpdatedAtUtc,
-            task.Comments
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .Select(x => new TaskCommentDto(
-                    x.Id,
-                    x.AuthorId,
-                    x.Author.Username,
-                    x.Content,
-                    x.CreatedAtUtc
-                ))
-                .ToList()
-        );
 }

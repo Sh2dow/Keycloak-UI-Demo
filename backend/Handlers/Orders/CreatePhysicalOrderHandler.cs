@@ -1,7 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
-using backend.Models;
+using backend.Mappers;
 using backend.Requests.Orders;
 using MediatR;
 
@@ -21,27 +21,15 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
     public async Task<OrderViewDto> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
-        var order = new PhysicalOrder
-        {
-            UserId = userId,
-            TotalAmount = req.TotalAmount,
-            ShippingAddress = req.ShippingAddress.Trim(),
-            TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim(),
-            Status = "Created"
-        };
+        var order = req.ToEntity();
+        order.UserId = userId;
+        order.ShippingAddress = req.ShippingAddress.Trim();
+        order.TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim();
+        order.Status = "Created";
 
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
-        return new OrderViewDto(
-            order.Id,
-            "physical",
-            order.TotalAmount,
-            order.Status,
-            order.CreatedAtUtc,
-            null,
-            order.ShippingAddress,
-            order.TrackingNumber
-        );
+        return OrderMapper.ToDto((backend.Models.Order)order);
     }
 }

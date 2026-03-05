@@ -1,6 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
+using backend.Mappers;
 using backend.Models;
 using backend.Requests.Orders;
 using MediatR;
@@ -52,41 +53,6 @@ public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Upd
 
         await _db.SaveChangesAsync(ct);
 
-        return new UpdateOrderResult(false, null, MapOrder(order));
+        return new UpdateOrderResult(false, null, OrderMapper.ToDto(order));
     }
-
-    private static OrderViewDto MapOrder(Order order) =>
-        order switch
-        {
-            DigitalOrder digital => new(
-                digital.Id,
-                "digital",
-                digital.TotalAmount,
-                digital.Status,
-                digital.CreatedAtUtc,
-                digital.DownloadUrl,
-                null,
-                null
-            ),
-            PhysicalOrder physical => new(
-                physical.Id,
-                "physical",
-                physical.TotalAmount,
-                physical.Status,
-                physical.CreatedAtUtc,
-                null,
-                physical.ShippingAddress,
-                physical.TrackingNumber
-            ),
-            _ => new(
-                order.Id,
-                "unknown",
-                order.TotalAmount,
-                order.Status,
-                order.CreatedAtUtc,
-                null,
-                null,
-                null
-            )
-        };
 }

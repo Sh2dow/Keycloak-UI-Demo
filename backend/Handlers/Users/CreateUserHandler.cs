@@ -1,6 +1,6 @@
 using backend.Data;
 using backend.Dtos;
-using backend.Models;
+using backend.Mappers;
 using backend.Requests.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,12 +22,10 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Creat
         var exists = await _db.AppUsers.AnyAsync(x => x.Subject == subject, ct);
         if (exists) return new CreateUserResult(true, null);
 
-        var user = new AppUser
-        {
-            Subject = subject,
-            Username = req.Username.Trim(),
-            Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim()
-        };
+        var user = req.ToEntity();
+        user.Subject = subject;
+        user.Username = req.Username.Trim();
+        user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
 
         _db.AppUsers.Add(user);
         await _db.SaveChangesAsync(ct);
@@ -37,54 +35,6 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Creat
             .Include(x => x.Orders)
             .FirstAsync(x => x.Id == user.Id, ct);
 
-        return new CreateUserResult(false, MapUser(created));
+        return new CreateUserResult(false, created.ToDto());
     }
-
-    private static UserWithOrdersDto MapUser(AppUser user) =>
-        new(
-            user.Id,
-            user.Subject,
-            user.Username,
-            user.Email,
-            user.CreatedAtUtc,
-            user.Orders
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .Select(MapOrder)
-                .ToList()
-        );
-
-    private static OrderViewDto MapOrder(Order order) =>
-        order switch
-        {
-            DigitalOrder digital => new(
-                digital.Id,
-                "digital",
-                digital.TotalAmount,
-                digital.Status,
-                digital.CreatedAtUtc,
-                digital.DownloadUrl,
-                null,
-                null
-            ),
-            PhysicalOrder physical => new(
-                physical.Id,
-                "physical",
-                physical.TotalAmount,
-                physical.Status,
-                physical.CreatedAtUtc,
-                null,
-                physical.ShippingAddress,
-                physical.TrackingNumber
-            ),
-            _ => new(
-                order.Id,
-                "unknown",
-                order.TotalAmount,
-                order.Status,
-                order.CreatedAtUtc,
-                null,
-                null,
-                null
-            )
-        };
 }

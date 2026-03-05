@@ -1,6 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
+using backend.Mappers;
 using backend.Models;
 using backend.Requests.Tasks;
 using MediatR;
@@ -41,12 +42,6 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
             .Include(x => x.Author)
             .FirstAsync(x => x.Id == comment.Id, ct);
 
-        return new TaskCommentDto(
-            created.Id,
-            created.AuthorId,
-            created.Author.Username,
-            created.Content,
-            created.CreatedAtUtc
-        );
+        return created.ToDto();
     }
 }

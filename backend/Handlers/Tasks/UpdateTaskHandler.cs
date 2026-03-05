@@ -1,6 +1,7 @@
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
+using backend.Mappers;
 using backend.Requests.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -37,17 +38,7 @@ public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, TaskI
 
         await _db.SaveChangesAsync(ct);
 
-        return new TaskItemDto(
-            task.Id,
-            task.UserId,
-            task.Title,
-            task.Description,
-            task.Status,
-            task.Priority,
-            task.CreatedAtUtc,
-            task.UpdatedAtUtc,
-            []
-        );
+        return task.ToDto() with { Comments = [] };
     }
 
     private static string NormalizeStatus(string? status)
