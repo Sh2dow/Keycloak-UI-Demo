@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Tasks;
 
-public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, TaskItemDto?>
+public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Result<TaskItemDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -19,12 +20,12 @@ public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, TaskI
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<TaskItemDto?> Handle(UpdateTaskCommand req, CancellationToken ct)
+    public async Task<Result<TaskItemDto>> Handle(UpdateTaskCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var task = await _db.Tasks
             .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
-        if (task == null) return null;
+        if (task == null) return Result<TaskItemDto>.NotFound("Task not found.");
 
         if (!string.IsNullOrWhiteSpace(req.Title))
         {
@@ -38,7 +39,7 @@ public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, TaskI
 
         await _db.SaveChangesAsync(ct);
 
-        return task.ToDto() with { Comments = [] };
+        return Result<TaskItemDto>.Success(task.ToDto() with { Comments = [] });
     }
 
     private static string NormalizeStatus(string? status)

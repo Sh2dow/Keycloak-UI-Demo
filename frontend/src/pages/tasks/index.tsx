@@ -143,9 +143,6 @@ export function TasksPage() {
                     Explore mode: acting on user {asUserId}
                 </Text>
             )}
-            <Text c="dimmed" size="sm">
-                Task list endpoint uses EF Core AsNoTrackingWithIdentityResolution to return task/comment graphs.
-            </Text>
 
             <Card withBorder radius="md" p="md">
                 <Stack>

@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -7,7 +8,7 @@ using MediatR;
 
 namespace backend.Handlers.Orders;
 
-public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrderCommand, OrderViewDto>
+public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrderCommand, Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -18,7 +19,7 @@ public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrd
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<OrderViewDto> Handle(CreateDigitalOrderCommand req, CancellationToken ct)
+    public async Task<Result<OrderViewDto>> Handle(CreateDigitalOrderCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = req.ToEntity();
@@ -29,6 +30,6 @@ public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrd
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
-        return OrderMapper.ToDto((backend.Models.Order)order);
+        return Result<OrderViewDto>.Success(OrderMapper.ToDto((backend.Models.Order)order));
     }
 }

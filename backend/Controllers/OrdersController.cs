@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Dtos;
 using backend.Requests.Orders;
 using MediatR;
@@ -41,28 +42,28 @@ public class OrdersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateOrderRequest req, CancellationToken ct = default)
     {
-        var order = await _mediator.Send(
+        var result = await _mediator.Send(
             new CreateOrderCommand(req.OrderType, req.TotalAmount, req.DownloadUrl, req.ShippingAddress, req.TrackingNumber),
             ct
         );
 
-        return Ok(order);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpPost("digital")]
     public async Task<IActionResult> CreateDigital([FromBody] CreateDigitalOrderRequest req, CancellationToken ct = default)
     {
-        var order = await _mediator.Send(new CreateDigitalOrderCommand(req.TotalAmount, req.DownloadUrl), ct);
-        return Ok(order);
+        var result = await _mediator.Send(new CreateDigitalOrderCommand(req.TotalAmount, req.DownloadUrl), ct);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpPost("physical")]
     public async Task<IActionResult> CreatePhysical([FromBody] CreatePhysicalOrderRequest req, CancellationToken ct = default)
     {
-        var order = await _mediator.Send(new CreatePhysicalOrderCommand(req.TotalAmount, req.ShippingAddress, req.TrackingNumber), ct);
-        return Ok(order);
+        var result = await _mediator.Send(new CreatePhysicalOrderCommand(req.TotalAmount, req.ShippingAddress, req.TrackingNumber), ct);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
@@ -74,17 +75,14 @@ public class OrdersController : ControllerBase
             ct
         );
 
-        if (result.NotFound) return NotFound();
-        if (result.ValidationError != null) return BadRequest(result.ValidationError);
-        return Ok(result.Order);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
     {
-        var deleted = await _mediator.Send(new DeleteOrderCommand(id), ct);
-        if (!deleted) return NotFound();
-        return Ok(new { id });
+        var result = await _mediator.Send(new DeleteOrderCommand(id), ct);
+        return this.ToActionResult(result, _ => Ok(new { id }));
     }
 }

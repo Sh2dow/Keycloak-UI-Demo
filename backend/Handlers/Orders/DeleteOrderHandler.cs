@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Requests.Orders;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Orders;
 
-public sealed class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, bool>
+public sealed class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, Result<bool>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -17,15 +18,15 @@ public sealed class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, boo
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<bool> Handle(DeleteOrderCommand req, CancellationToken ct)
+    public async Task<Result<bool>> Handle(DeleteOrderCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = await _db.Orders
             .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
-        if (order == null) return false;
+        if (order == null) return Result<bool>.NotFound("Order not found.");
 
         _db.Orders.Remove(order);
         await _db.SaveChangesAsync(ct);
-        return true;
+        return Result<bool>.Success(true);
     }
 }

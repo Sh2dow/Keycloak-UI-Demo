@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Orders;
 
-public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, UpdateOrderResult>
+public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -20,12 +21,12 @@ public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Upd
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<UpdateOrderResult> Handle(UpdateOrderCommand req, CancellationToken ct)
+    public async Task<Result<OrderViewDto>> Handle(UpdateOrderCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = await _db.Orders
             .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
-        if (order == null) return new UpdateOrderResult(true, null, null);
+        if (order == null) return Result<OrderViewDto>.NotFound("Order not found.");
 
         order.TotalAmount = req.TotalAmount;
         order.Status = req.Status.Trim();
@@ -35,7 +36,7 @@ public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Upd
             case DigitalOrder digital:
                 if (string.IsNullOrWhiteSpace(req.DownloadUrl))
                 {
-                    return new UpdateOrderResult(false, "DownloadUrl is required for digital orders", null);
+                    return Result<OrderViewDto>.Validation([new ResultError("validation", "DownloadUrl is required for digital orders.", nameof(req.DownloadUrl))]);
                 }
 
                 digital.DownloadUrl = req.DownloadUrl.Trim();
@@ -43,7 +44,7 @@ public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Upd
             case PhysicalOrder physical:
                 if (string.IsNullOrWhiteSpace(req.ShippingAddress))
                 {
-                    return new UpdateOrderResult(false, "ShippingAddress is required for physical orders", null);
+                    return Result<OrderViewDto>.Validation([new ResultError("validation", "ShippingAddress is required for physical orders.", nameof(req.ShippingAddress))]);
                 }
 
                 physical.ShippingAddress = req.ShippingAddress.Trim();
@@ -53,6 +54,6 @@ public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Upd
 
         await _db.SaveChangesAsync(ct);
 
-        return new UpdateOrderResult(false, null, OrderMapper.ToDto(order));
+        return Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
     }
 }

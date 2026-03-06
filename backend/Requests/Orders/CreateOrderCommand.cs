@@ -1,4 +1,5 @@
 using backend.Application.Abstractions;
+using backend.Application.Results;
 using backend.Dtos;
 
 namespace backend.Requests.Orders;
@@ -9,4 +10,4 @@ public sealed record CreateOrderCommand(
     string? DownloadUrl,
     string? ShippingAddress,
     string? TrackingNumber
-) : ICommand<OrderViewDto>;
+) : ICommand<Result<OrderViewDto>>;

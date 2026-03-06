@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Data;
 using backend.Dtos;
 using backend.Mappers;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Users;
 
-public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, CreateUserResult>
+public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Result<UserWithOrdersDto>>
 {
     private readonly AppDbContext _db;
 
@@ -16,11 +17,11 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Creat
         _db = db;
     }
 
-    public async Task<CreateUserResult> Handle(CreateUserCommand req, CancellationToken ct)
+    public async Task<Result<UserWithOrdersDto>> Handle(CreateUserCommand req, CancellationToken ct)
     {
         var subject = req.Subject.Trim();
         var exists = await _db.AppUsers.AnyAsync(x => x.Subject == subject, ct);
-        if (exists) return new CreateUserResult(true, null);
+        if (exists) return Result<UserWithOrdersDto>.Conflict("User with this subject already exists.");
 
         var user = req.ToEntity();
         user.Subject = subject;
@@ -35,6 +36,6 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Creat
             .Include(x => x.Orders)
             .FirstAsync(x => x.Id == user.Id, ct);
 
-        return new CreateUserResult(false, created.ToDto());
+        return Result<UserWithOrdersDto>.Success(created.ToDto());
     }
 }

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Application.Exceptions;
@@ -26,23 +25,6 @@ public sealed class ProblemDetailsExceptionMiddleware
         catch (HttpProblemException ex)
         {
             await WriteProblem(context, ex.StatusCode, ex.Title, ex.Detail);
-        }
-        catch (ValidationException ex)
-        {
-            var errors = ex.Errors
-                .GroupBy(x => x.PropertyName)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Select(x => x.ErrorMessage).Distinct().ToArray()
-                );
-
-            await WriteProblem(
-                context,
-                StatusCodes.Status400BadRequest,
-                "Validation failed",
-                "One or more validation errors occurred.",
-                errors
-            );
         }
         catch (Exception ex)
         {

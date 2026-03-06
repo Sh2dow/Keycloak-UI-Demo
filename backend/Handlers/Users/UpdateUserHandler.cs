@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Data;
 using backend.Dtos;
 using backend.Mappers;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Users;
 
-public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserWithOrdersDto?>
+public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Result<UserWithOrdersDto>>
 {
     private readonly AppDbContext _db;
 
@@ -16,10 +17,10 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserW
         _db = db;
     }
 
-    public async Task<UserWithOrdersDto?> Handle(UpdateUserCommand req, CancellationToken ct)
+    public async Task<Result<UserWithOrdersDto>> Handle(UpdateUserCommand req, CancellationToken ct)
     {
         var user = await _db.AppUsers.FirstOrDefaultAsync(x => x.Id == req.Id, ct);
-        if (user == null) return null;
+        if (user == null) return Result<UserWithOrdersDto>.NotFound("User not found.");
 
         user.Username = req.Username.Trim();
         user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
@@ -30,6 +31,6 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserW
             .Include(x => x.Orders)
             .FirstAsync(x => x.Id == req.Id, ct);
 
-        return updated.ToDto();
+        return Result<UserWithOrdersDto>.Success(updated.ToDto());
     }
 }

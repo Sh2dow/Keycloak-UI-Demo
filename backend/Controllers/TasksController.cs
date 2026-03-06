@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using backend.Application.Results;
 using backend.Dtos;
 using backend.Requests.Tasks;
 using MediatR;
@@ -55,34 +56,31 @@ public class TasksController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateTaskRequest req, CancellationToken ct = default)
     {
-        var task = await _mediator.Send(new CreateTaskCommand(req.Title, req.Description, req.Status, req.Priority), ct);
-        return Ok(task);
+        var result = await _mediator.Send(new CreateTaskCommand(req.Title, req.Description, req.Status, req.Priority), ct);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTaskRequest req, CancellationToken ct = default)
     {
-        var task = await _mediator.Send(new UpdateTaskCommand(id, req.Title, req.Description, req.Status, req.Priority), ct);
-        if (task == null) return NotFound();
-        return Ok(task);
+        var result = await _mediator.Send(new UpdateTaskCommand(id, req.Title, req.Description, req.Status, req.Priority), ct);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
     {
-        var deleted = await _mediator.Send(new DeleteTaskCommand(id), ct);
-        if (!deleted) return NotFound();
-        return Ok(new { id });
+        var result = await _mediator.Send(new DeleteTaskCommand(id), ct);
+        return this.ToActionResult(result, _ => Ok(new { id }));
     }
 
     [Authorize]
     [HttpPost("{id:guid}/comments")]
     public async Task<IActionResult> AddComment(Guid id, [FromBody] AddTaskCommentRequest req, CancellationToken ct = default)
     {
-        var comment = await _mediator.Send(new AddTaskCommentCommand(id, req.Content), ct);
-        if (comment == null) return NotFound();
-        return Ok(comment);
+        var result = await _mediator.Send(new AddTaskCommentCommand(id, req.Content), ct);
+        return this.ToActionResult(result);
     }
 }

@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Tasks;
 
-public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, TaskCommentDto?>
+public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, Result<TaskCommentDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -20,12 +21,12 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<TaskCommentDto?> Handle(AddTaskCommentCommand req, CancellationToken ct)
+    public async Task<Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var taskExists = await _db.Tasks
             .AnyAsync(x => x.Id == req.TaskId && x.UserId == userId, ct);
-        if (!taskExists) return null;
+        if (!taskExists) return Result<TaskCommentDto>.NotFound("Task not found.");
 
         var comment = new TaskComment
         {
@@ -42,6 +43,6 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
             .Include(x => x.Author)
             .FirstAsync(x => x.Id == comment.Id, ct);
 
-        return created.ToDto();
+        return Result<TaskCommentDto>.Success(created.ToDto());
     }
 }

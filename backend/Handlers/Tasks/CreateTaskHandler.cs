@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -7,7 +8,7 @@ using MediatR;
 
 namespace backend.Handlers.Tasks;
 
-public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, TaskItemDto>
+public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, Result<TaskItemDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -18,7 +19,7 @@ public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, TaskI
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<TaskItemDto> Handle(CreateTaskCommand req, CancellationToken ct)
+    public async Task<Result<TaskItemDto>> Handle(CreateTaskCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var task = req.ToEntity();
@@ -31,7 +32,7 @@ public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, TaskI
         _db.Tasks.Add(task);
         await _db.SaveChangesAsync(ct);
 
-        return task.ToDto() with { Comments = [] };
+        return Result<TaskItemDto>.Success(task.ToDto() with { Comments = [] });
     }
 
     private static string NormalizeStatus(string? status)

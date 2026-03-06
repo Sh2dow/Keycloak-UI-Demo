@@ -1,4 +1,5 @@
 using backend.Application.Abstractions;
+using backend.Application.Results;
 using backend.Dtos;
 
 namespace backend.Requests.Tasks;
@@ -9,4 +10,4 @@ public sealed record UpdateTaskCommand(
     string? Description,
     string? Status,
     string? Priority
-) : ICommand<TaskItemDto?>;
+) : ICommand<Result<TaskItemDto>>;

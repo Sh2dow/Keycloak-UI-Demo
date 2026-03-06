@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Dtos;
 using backend.Requests.Users;
@@ -43,26 +44,23 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateUserRequest req, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new CreateUserCommand(req.Subject, req.Username, req.Email), ct);
-        if (result.IsConflict) return Conflict("User with this subject already exists");
-        return Ok(result.User);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUserRequest req, CancellationToken ct = default)
     {
-        var updated = await _mediator.Send(new UpdateUserCommand(id, req.Username, req.Email), ct);
-        if (updated == null) return NotFound();
-        return Ok(updated);
+        var result = await _mediator.Send(new UpdateUserCommand(id, req.Username, req.Email), ct);
+        return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
     {
-        var deleted = await _mediator.Send(new DeleteUserCommand(id), ct);
-        if (!deleted) return NotFound();
-        return Ok(new { id });
+        var result = await _mediator.Send(new DeleteUserCommand(id), ct);
+        return this.ToActionResult(result, _ => Ok(new { id }));
     }
 
     [Authorize]

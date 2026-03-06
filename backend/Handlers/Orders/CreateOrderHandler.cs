@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Dtos;
 using backend.Requests.Orders;
@@ -5,7 +6,7 @@ using MediatR;
 
 namespace backend.Handlers.Orders;
 
-public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, OrderViewDto>
+public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Result<OrderViewDto>>
 {
     private readonly IMediator _mediator;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -16,7 +17,7 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<OrderViewDto> Handle(CreateOrderCommand req, CancellationToken ct)
+    public async Task<Result<OrderViewDto>> Handle(CreateOrderCommand req, CancellationToken ct)
     {
         await _effectiveUser.GetUserIdAsync(ct);
         var orderType = req.OrderType.Trim().ToLowerInvariant();
@@ -31,7 +32,7 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Ord
                 new CreatePhysicalOrderCommand(req.TotalAmount, req.ShippingAddress!, req.TrackingNumber),
                 ct
             ),
-            _ => throw new InvalidOperationException($"Unsupported order type: {orderType}")
+            _ => Result<OrderViewDto>.Validation([new ResultError("validation", "OrderType must be either 'digital' or 'physical'.", nameof(req.OrderType))])
         };
     }
 }

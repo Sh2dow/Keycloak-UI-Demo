@@ -1,3 +1,4 @@
+using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -7,7 +8,7 @@ using MediatR;
 
 namespace backend.Handlers.Orders;
 
-public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, OrderViewDto>
+public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -18,7 +19,7 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
         _effectiveUser = effectiveUser;
     }
 
-    public async Task<OrderViewDto> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
+    public async Task<Result<OrderViewDto>> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = req.ToEntity();
@@ -30,6 +31,6 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
-        return OrderMapper.ToDto((backend.Models.Order)order);
+        return Result<OrderViewDto>.Success(OrderMapper.ToDto((backend.Models.Order)order));
     }
 }
