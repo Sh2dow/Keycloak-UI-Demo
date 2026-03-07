@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Data;
@@ -11,13 +12,15 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260307192021_AddPaymentMessagingInfrastructure")]
+    partial class AddPaymentMessagingInfrastructure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -136,61 +139,6 @@ namespace backend.Migrations
                     b.HasDiscriminator<string>("order_type").HasValue("Order");
 
                     b.UseTphMappingStrategy();
-                });
-
-            modelBuilder.Entity("backend.Models.OrderSagaState", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<DateTime?>("ExecutionDispatchedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("execution_dispatched_at_utc");
-
-                    b.Property<DateTime?>("LastPaymentCompletedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_payment_completed_at_utc");
-
-                    b.Property<DateTime?>("LastPaymentRequestedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_payment_requested_at_utc");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("order_id");
-
-                    b.Property<Guid?>("PaymentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("payment_id");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("state");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at_utc");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_order_saga_states");
-
-                    b.HasIndex("OrderId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_order_saga_states_order_id");
-
-                    b.ToTable("order_saga_states", (string)null);
                 });
 
             modelBuilder.Entity("backend.Models.OutboxMessage", b =>

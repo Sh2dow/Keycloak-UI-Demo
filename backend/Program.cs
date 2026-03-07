@@ -1,27 +1,44 @@
 using System.Security.Claims;
 using backend.Application.Behaviors;
 using backend.Application.Exceptions;
+using backend.Application.Messaging;
 using backend.Application.Security;
 using backend.Application.Users;
 using backend.Data;
+using backend.Infrastructure.Messaging;
+using backend.Infrastructure.Orders;
+using backend.Infrastructure.Payments;
+using backend.Requests.Orders;
+using backend.Requests.Tasks;
+using backend.Requests.Users;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+var featureAssemblies = new[]
+{
+    typeof(Program).Assembly,
+    typeof(CreateUserCommand).Assembly,
+    typeof(CreateOrderCommand).Assembly,
+    typeof(CreateTaskCommand).Assembly
+};
 
+builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly)
+    cfg.RegisterServicesFromAssemblies(featureAssemblies)
 );
-builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddValidatorsFromAssemblies(featureAssemblies);
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
@@ -30,11 +47,35 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBe
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
+builder.Services.AddScoped<IIntegrationEventOutbox, DbIntegrationEventOutbox>();
+builder.Services.AddSingleton<RabbitMqConnectionFactory>();
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRoleClaimsTransformation>();
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.PostConfigure<RabbitMqOptions>(options =>
+{
+    var aspireConnectionString = builder.Configuration.GetConnectionString("messaging");
+    if (!string.IsNullOrWhiteSpace(aspireConnectionString))
+    {
+        options.Uri = aspireConnectionString;
+    }
+});
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
+builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
+builder.Services.AddHostedService<PaymentStubConsumer>();
+builder.Services.AddHostedService<OrderSagaConsumer>();
+builder.Services.AddHostedService<OrderExecutionDispatchConsumer>();
+
+var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
+
+if (string.IsNullOrWhiteSpace(defaultConnectionString))
+{
+    throw new InvalidOperationException(
+        "Connection string 'Default' is missing. Ensure appsettings.json is loaded or " +
+        "backend.AppHost injects ConnectionStrings__Default for backend.Api.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-            builder.Configuration.GetConnectionString("Default"))
+    options.UseNpgsql(defaultConnectionString)
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddCors(options =>
@@ -45,7 +86,16 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod());
 });
 
-var authority = builder.Configuration["Keycloak:Authority"]!;
+var authority = builder.Configuration["Keycloak:Authority"];
+
+if (string.IsNullOrWhiteSpace(authority))
+{
+    throw new InvalidOperationException(
+        "Keycloak authority is missing. Configure 'Keycloak:Authority' in appsettings.json " +
+        "or provide it via environment variables.");
+}
+
+var normalizedAuthority = authority.TrimEnd('/');
 
 builder.Services.AddAuthentication(options =>
     {
@@ -54,7 +104,8 @@ builder.Services.AddAuthentication(options =>
     })
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
-        options.Authority = authority;
+        options.Authority = normalizedAuthority;
+        options.MetadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
         options.RequireHttpsMetadata = false;
         options.MapInboundClaims = false;
 
@@ -62,6 +113,7 @@ builder.Services.AddAuthentication(options =>
         {
             ValidateAudience = false,
             ValidateIssuer = true,
+            ValidIssuer = normalizedAuthority,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(2),
             NameClaimType = "sub",
@@ -104,6 +156,40 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+var dbConnectionStringBuilder = new NpgsqlConnectionStringBuilder(defaultConnectionString);
+var rabbitMqConnectionString = builder.Configuration.GetConnectionString("messaging");
+var rabbitMqUri = builder.Configuration[$"{RabbitMqOptions.SectionName}:Uri"];
+var effectiveRabbitMqTarget = !string.IsNullOrWhiteSpace(rabbitMqConnectionString)
+    ? rabbitMqConnectionString
+    : rabbitMqUri;
+
+string FormatRabbitMqTarget(string? connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return "missing";
+    }
+
+    if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+    {
+        return "invalid";
+    }
+
+    return $"{uri.Host}:{uri.Port}";
+}
+
+app.Logger.LogInformation(
+    "Startup config. Environment={Environment}; Db={DbHost}:{DbPort}/{DbName}; DbFromEnv={DbFromEnv}; RabbitMq={RabbitMq}; RabbitMqFromEnv={RabbitMqFromEnv}; KeycloakAuthority={KeycloakAuthority}",
+    app.Environment.EnvironmentName,
+    dbConnectionStringBuilder.Host,
+    dbConnectionStringBuilder.Port,
+    dbConnectionStringBuilder.Database,
+    !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__Default")),
+    FormatRabbitMqTarget(effectiveRabbitMqTarget),
+    !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__messaging")) ||
+    !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RabbitMq__Uri")),
+    normalizedAuthority);
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -119,5 +205,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapDefaultEndpoints();
 
 app.Run();

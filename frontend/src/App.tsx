@@ -31,7 +31,7 @@ import { ClientsPage } from "./pages/clients";
 import { keycloakAuthProvider } from "./providers/keycloakAuthProvider";
 import { keycloakDataProvider } from "./providers/keycloakDataProvider";
 
-const API_URL = "http://localhost:5274";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 const queryClient = new QueryClient();
 
 function LoginPage() {

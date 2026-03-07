@@ -18,7 +18,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { getAccessToken } from "../../providers/keycloakAuthProvider";
 
-const API_URL = "http://localhost:5274";
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 type TaskComment = {
     id: string;

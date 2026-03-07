@@ -14,6 +14,10 @@ public class AppDbContext : DbContext
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderSagaState> OrderSagaStates => Set<OrderSagaState>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ConsumedMessage> ConsumedMessages => Set<ConsumedMessage>();
+    public DbSet<PaymentEventRecord> PaymentEventRecords => Set<PaymentEventRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -123,6 +127,75 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.TrackingNumber)
                 .HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<OrderSagaState>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.State)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.HasIndex(x => x.OrderId)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.EventType)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(x => x.RoutingKey)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(x => x.Payload)
+                .IsRequired();
+
+            entity.Property(x => x.CorrelationId)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.LastError)
+                .HasMaxLength(2000);
+
+            entity.HasIndex(x => x.PublishedAtUtc);
+            entity.HasIndex(x => x.OccurredAtUtc);
+        });
+
+        modelBuilder.Entity<ConsumedMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Consumer)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(x => x.MessageId)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.HasIndex(x => new { x.Consumer, x.MessageId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<PaymentEventRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.EventType)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(x => x.Data)
+                .IsRequired();
+
+            entity.HasIndex(x => x.OrderId);
+            entity.HasIndex(x => new { x.PaymentId, x.SequenceNumber })
+                .IsUnique();
         });
     }
 }

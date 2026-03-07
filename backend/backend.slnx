@@ -1,3 +1,12 @@
 <Solution>
-	<Project Path="backend.csproj" />
+	<Project Path="backend.Api/backend.Api.csproj" />
+	<Project Path="backend.AppHost/backend.AppHost.csproj" />
+	<Project Path="backend.Domain/backend.Domain.csproj" />
+	<Project Path="backend.Infrastructure/backend.Infrastructure.csproj" />
+	<Project Path="backend.Orders/backend.Orders.csproj" />
+	<Project Path="backend.Payments/backend.Payments.csproj" />
+	<Project Path="backend.ServiceDefaults/backend.ServiceDefaults.csproj" />
+	<Project Path="backend.Shared/backend.Shared.csproj" />
+	<Project Path="backend.Tasks/backend.Tasks.csproj" />
+	<Project Path="backend.Users/backend.Users.csproj" />
 </Solution>

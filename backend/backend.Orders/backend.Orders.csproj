@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Application\Orders\OrderSagaStates.cs" />
+    <Compile Include="..\Application\Orders\OrderStatuses.cs" />
+    <Compile Include="..\Dtos\OrderDtos.cs" />
+    <Compile Include="..\Dtos\OrderViewDto.cs" />
+    <Compile Include="GlobalUsings.cs" />
+    <Compile Include="..\Handlers\Orders\**\*.cs" />
+    <Compile Include="..\Infrastructure\Orders\**\*.cs" />
+    <Compile Include="..\Mappers\OrderMapper.cs" />
+    <Compile Include="..\Requests\Orders\**\*.cs" />
+    <Compile Include="..\Validation\Orders\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />
+    <ProjectReference Include="..\backend.Infrastructure\backend.Infrastructure.csproj" />
+    <ProjectReference Include="..\backend.Shared\backend.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.0" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
+    <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
+  </ItemGroup>
+</Project>
