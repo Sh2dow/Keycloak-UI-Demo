@@ -1,6 +1,8 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import type {
     BaseRecord,
+    CustomParams,
+    CustomResponse,
     CreateParams,
     CreateResponse,
     DataProvider,
@@ -46,6 +48,19 @@ const getAsUserId = (resource: string, meta: unknown): string | undefined => {
         return undefined;
     }
 
+    if (!meta || typeof meta !== "object") {
+        return undefined;
+    }
+
+    const asUserId = (meta as { asUserId?: unknown }).asUserId;
+    if (typeof asUserId !== "string" || asUserId.trim().length === 0) {
+        return undefined;
+    }
+
+    return asUserId.trim();
+};
+
+const getAsUserIdFromMeta = (meta: unknown): string | undefined => {
     if (!meta || typeof meta !== "object") {
         return undefined;
     }
@@ -169,15 +184,28 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
         params: GetOneParams,
     ): Promise<GetOneResponse<TData>> => {
         const { resource, id } = params;
+        const endpoint = endpointMap[resource as keyof typeof endpointMap];
         const asUserId = getAsUserId(resource, params.meta);
-        const list = (await fetchList(apiUrl, resource, asUserId)) as TData[];
 
-        const found = list.find((item) => String(item.id) === String(id));
-        if (!found) {
-            throw new Error(`Record not found for resource '${resource}' and id '${id}'`);
+        if (resource === "groups" || resource === "clients") {
+            const list = (await fetchList(apiUrl, resource, asUserId)) as TData[];
+            const found = list.find((item) => String(item.id) === String(id));
+            if (!found) {
+                throw new Error(`Record not found for resource '${resource}' and id '${id}'`);
+            }
+
+            return { data: found };
         }
 
-        return { data: found };
+        if (!endpoint) {
+            throw new Error(`GetOne is not implemented for resource '${resource}'`);
+        }
+
+        const response = await axios.get(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, {
+            headers: await authHeaders(),
+        });
+
+        return { data: toListRecord(response.data, 0) as TData };
     },
     create: async <TData extends BaseRecord = BaseRecord, TVariables = object>(
         params: CreateParams<TVariables>,
@@ -231,5 +259,24 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
         });
 
         return { data: { id } as TData };
+    },
+    custom: async <TData extends BaseRecord = BaseRecord, TQuery = unknown, TPayload = unknown>(
+        params: CustomParams<TQuery, TPayload>,
+    ): Promise<CustomResponse<TData>> => {
+        const asUserId = getAsUserIdFromMeta(params.meta);
+        const headers = {
+            ...(await authHeaders()),
+            ...(params.headers ?? {}),
+        };
+
+        const response = await axios({
+            url: `${apiUrl}${withAsUserId(params.url, asUserId)}`,
+            method: params.method,
+            params: params.query,
+            data: params.payload,
+            headers,
+        });
+
+        return { data: response.data as TData };
     },
 });

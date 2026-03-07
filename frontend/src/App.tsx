@@ -24,6 +24,7 @@ import { Notifications } from "@mantine/notifications";
 import { BrowserRouter, Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { UsersPage } from "./pages/users";
 import { OrdersPage } from "./pages/orders";
+import { OrderDetailsPage } from "./pages/orders/details";
 import { TasksPage } from "./pages/tasks";
 import { RolesPage } from "./pages/roles";
 import { GroupsPage } from "./pages/groups";
@@ -113,7 +114,7 @@ export default function App() {
                         routerProvider={routerProvider}
                         resources={[
                             { name: "users", list: "/users" },
-                            { name: "orders", list: "/orders" },
+                            { name: "orders", list: "/orders", show: "/orders/:id" },
                             { name: "tasks", list: "/tasks" },
                             { name: "roles", list: "/roles" },
                             { name: "groups", list: "/groups" },
@@ -135,6 +136,7 @@ export default function App() {
                                 <Route index element={<NavigateToResource resource="users" />} />
                                 <Route path="/users" element={<UsersPage />} />
                                 <Route path="/orders" element={<OrdersPage />} />
+                                <Route path="/orders/:id" element={<OrderDetailsPage />} />
                                 <Route path="/tasks" element={<TasksPage />} />
                                 <Route path="/roles" element={<RolesPage />} />
                                 <Route path="/groups" element={<GroupsPage />} />

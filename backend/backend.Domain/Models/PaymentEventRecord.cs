@@ -8,6 +8,8 @@ public class PaymentEventRecord
 
     public Guid OrderId { get; set; }
 
+    public int AttemptNumber { get; set; } = 1;
+
     public int SequenceNumber { get; set; }
 
     public string EventType { get; set; } = string.Empty;

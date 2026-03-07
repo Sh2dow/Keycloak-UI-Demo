@@ -59,6 +59,30 @@ public static class RabbitMqTopology
 
         await DeclareQueueAsync(
             channel,
+            options.OrderSagaQueue,
+            options.Exchange,
+            options.DeadLetterExchange,
+            "orders.execution-started",
+            ct);
+
+        await DeclareQueueAsync(
+            channel,
+            options.OrderSagaQueue,
+            options.Exchange,
+            options.DeadLetterExchange,
+            "orders.execution-completed",
+            ct);
+
+        await DeclareQueueAsync(
+            channel,
+            options.OrderSagaQueue,
+            options.Exchange,
+            options.DeadLetterExchange,
+            "orders.execution-failed",
+            ct);
+
+        await DeclareQueueAsync(
+            channel,
             options.OrderExecutionQueue,
             options.Exchange,
             options.DeadLetterExchange,

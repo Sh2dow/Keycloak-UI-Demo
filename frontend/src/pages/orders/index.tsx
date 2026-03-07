@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { useCreate, useDelete, useInvalidate, useList, useUpdate } from "@refinedev/core";
+import { useEffect, useState } from "react";
+import { useCreate, useDelete, useInvalidate, useList } from "@refinedev/core";
 import {
+    Badge,
     Button,
+    Card,
     Group,
     Loader,
-    Modal,
     Select,
     Stack,
     Table,
@@ -12,18 +13,8 @@ import {
     TextInput,
     Title,
 } from "@mantine/core";
-import { useSearchParams } from "react-router-dom";
-
-type OrderItem = {
-    id: string;
-    orderType: "digital" | "physical";
-    totalAmount: number;
-    status: string;
-    createdAtUtc: string;
-    downloadUrl?: string | null;
-    shippingAddress?: string | null;
-    trackingNumber?: string | null;
-};
+import { Link, useSearchParams } from "react-router-dom";
+import { getStatusMeta, paymentPendingStatuses, type OrderItem } from "./shared";
 
 export function OrdersPage() {
     const [searchParams] = useSearchParams();
@@ -34,7 +25,6 @@ export function OrdersPage() {
     });
     const invalidate = useInvalidate();
     const { mutateAsync: createOrder, isLoading: isCreating } = useCreate();
-    const { mutateAsync: updateOrder, isLoading: isUpdating } = useUpdate();
     const { mutateAsync: deleteOrder, isLoading: isDeleting } = useDelete();
 
     const [orderType, setOrderType] = useState<"digital" | "physical">("digital");
@@ -42,16 +32,24 @@ export function OrdersPage() {
     const [downloadUrl, setDownloadUrl] = useState("https://example.com/download/item");
     const [shippingAddress, setShippingAddress] = useState("221B Baker Street, London");
     const [trackingNumber, setTrackingNumber] = useState("");
+    const orders = listQuery.data?.data ?? [];
+    const pendingOrders = orders.filter((order) => paymentPendingStatuses.has(order.status));
 
-    const [editing, setEditing] = useState<OrderItem | null>(null);
-    const [editAmount, setEditAmount] = useState("0");
-    const [editStatus, setEditStatus] = useState("Created");
-    const [editDownloadUrl, setEditDownloadUrl] = useState("");
-    const [editShippingAddress, setEditShippingAddress] = useState("");
-    const [editTrackingNumber, setEditTrackingNumber] = useState("");
+    useEffect(() => {
+        if (pendingOrders.length === 0) {
+            return undefined;
+        }
+
+        const timer = window.setInterval(() => {
+            void listQuery.refetch();
+        }, 3000);
+
+        return () => {
+            window.clearInterval(timer);
+        };
+    }, [listQuery, pendingOrders.length]);
 
     if (listQuery.isLoading) return <Loader />;
-    const orders = listQuery.data?.data ?? [];
 
     const refresh = async () => {
         await invalidate({
@@ -79,37 +77,6 @@ export function OrdersPage() {
         await refresh();
     };
 
-    const openEdit = (order: OrderItem) => {
-        setEditing(order);
-        setEditAmount(String(order.totalAmount));
-        setEditStatus(order.status);
-        setEditDownloadUrl(order.downloadUrl ?? "");
-        setEditShippingAddress(order.shippingAddress ?? "");
-        setEditTrackingNumber(order.trackingNumber ?? "");
-    };
-
-    const onSaveEdit = async () => {
-        if (!editing) return;
-        const totalAmount = Number(editAmount);
-        if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !editStatus.trim()) return;
-
-        await updateOrder({
-            resource: "orders",
-            id: editing.id,
-            meta: asUserId ? { asUserId } : undefined,
-            values: {
-                totalAmount,
-                status: editStatus.trim(),
-                downloadUrl: editing.orderType === "digital" ? editDownloadUrl.trim() : null,
-                shippingAddress: editing.orderType === "physical" ? editShippingAddress.trim() : null,
-                trackingNumber: editing.orderType === "physical" ? editTrackingNumber.trim() || null : null,
-            },
-        });
-
-        setEditing(null);
-        await refresh();
-    };
-
     const onDelete = async (id: string) => {
         await deleteOrder({
             resource: "orders",
@@ -121,139 +88,151 @@ export function OrdersPage() {
 
     return (
         <Stack>
-            <Title order={2}>Orders</Title>
+            <Group justify="space-between" align="flex-end">
+                <div>
+                    <Title order={2}>Orders</Title>
+                    <Text c="dimmed" size="sm">
+                        Orders now follow a payment and execution workflow instead of free-form status edits.
+                    </Text>
+                </div>
+                {pendingOrders.length > 0 && (
+                    <Badge size="lg" color="yellow" variant="light">
+                        Polling {pendingOrders.length} pending payment {pendingOrders.length === 1 ? "order" : "orders"}
+                    </Badge>
+                )}
+            </Group>
+
             {asUserId && (
                 <Text c="dimmed" size="sm">
                     Explore mode: acting on user {asUserId}
                 </Text>
             )}
 
-            <Group align="flex-end" grow>
-                <Select
-                    label="Order Type"
-                    data={[
-                        { label: "Digital", value: "digital" },
-                        { label: "Physical", value: "physical" },
-                    ]}
-                    value={orderType}
-                    onChange={(value) => setOrderType((value as "digital" | "physical") ?? "digital")}
-                />
-                <TextInput
-                    label="Amount"
-                    value={amount}
-                    onChange={(event) => setAmount(event.currentTarget.value)}
-                />
-                {orderType === "digital" ? (
-                    <TextInput
-                        label="Download URL"
-                        value={downloadUrl}
-                        onChange={(event) => setDownloadUrl(event.currentTarget.value)}
-                    />
-                ) : (
-                    <TextInput
-                        label="Shipping Address"
-                        value={shippingAddress}
-                        onChange={(event) => setShippingAddress(event.currentTarget.value)}
-                    />
-                )}
-                {orderType === "physical" && (
-                    <TextInput
-                        label="Tracking Number"
-                        value={trackingNumber}
-                        onChange={(event) => setTrackingNumber(event.currentTarget.value)}
-                    />
-                )}
-                <Button onClick={onCreate} loading={isCreating}>
-                    Create
-                </Button>
-            </Group>
-
-            <Table striped withTableBorder withColumnBorders>
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Type</Table.Th>
-                        <Table.Th>Amount</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                        <Table.Th>Details</Table.Th>
-                        <Table.Th>Created</Table.Th>
-                        <Table.Th>Actions</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {orders.map((order) => (
-                        <Table.Tr key={order.id}>
-                            <Table.Td>{order.orderType}</Table.Td>
-                            <Table.Td>${order.totalAmount.toFixed(2)}</Table.Td>
-                            <Table.Td>{order.status}</Table.Td>
-                            <Table.Td>
-                                {order.orderType === "digital"
-                                    ? order.downloadUrl ?? "-"
-                                    : `${order.shippingAddress ?? "-"} (${order.trackingNumber ?? "-"})`}
-                            </Table.Td>
-                            <Table.Td>{new Date(order.createdAtUtc).toLocaleString()}</Table.Td>
-                            <Table.Td>
-                                <Group gap="xs">
-                                    <Button size="xs" variant="light" onClick={() => openEdit(order)}>
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        size="xs"
-                                        color="red"
-                                        variant="light"
-                                        loading={isDeleting}
-                                        onClick={() => onDelete(order.id)}
-                                    >
-                                        Delete
-                                    </Button>
-                                </Group>
-                            </Table.Td>
-                        </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
-
-            <Modal opened={!!editing} onClose={() => setEditing(null)} title="Edit Order">
+            <Card withBorder radius="md" p="md">
                 <Stack>
-                    <TextInput
-                        label="Amount"
-                        value={editAmount}
-                        onChange={(event) => setEditAmount(event.currentTarget.value)}
-                    />
-                    <TextInput
-                        label="Status"
-                        value={editStatus}
-                        onChange={(event) => setEditStatus(event.currentTarget.value)}
-                    />
-                    {editing?.orderType === "digital" ? (
-                        <TextInput
-                            label="Download URL"
-                            value={editDownloadUrl}
-                            onChange={(event) => setEditDownloadUrl(event.currentTarget.value)}
+                    <Text fw={700}>Create Order</Text>
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 16,
+                            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        }}
+                    >
+                        <Select
+                            label="Order Type"
+                            data={[
+                                { label: "Digital", value: "digital" },
+                                { label: "Physical", value: "physical" },
+                            ]}
+                            value={orderType}
+                            onChange={(value) => setOrderType((value as "digital" | "physical") ?? "digital")}
                         />
-                    ) : (
-                        <>
+                        <TextInput
+                            label="Amount"
+                            value={amount}
+                            onChange={(event) => setAmount(event.currentTarget.value)}
+                        />
+                        {orderType === "digital" ? (
+                            <TextInput
+                                label="Download URL"
+                                value={downloadUrl}
+                                onChange={(event) => setDownloadUrl(event.currentTarget.value)}
+                            />
+                        ) : (
                             <TextInput
                                 label="Shipping Address"
-                                value={editShippingAddress}
-                                onChange={(event) => setEditShippingAddress(event.currentTarget.value)}
+                                value={shippingAddress}
+                                onChange={(event) => setShippingAddress(event.currentTarget.value)}
                             />
+                        )}
+                        {orderType === "physical" ? (
                             <TextInput
                                 label="Tracking Number"
-                                value={editTrackingNumber}
-                                onChange={(event) => setEditTrackingNumber(event.currentTarget.value)}
+                                value={trackingNumber}
+                                onChange={(event) => setTrackingNumber(event.currentTarget.value)}
                             />
-                        </>
-                    )}
+                        ) : (
+                            <TextInput
+                                label="Workflow"
+                                value="Payment -> Execution"
+                                disabled
+                            />
+                        )}
+                    </div>
                     <Group justify="flex-end">
-                        <Button variant="default" onClick={() => setEditing(null)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={onSaveEdit} loading={isUpdating}>
-                            Save
+                        <Button onClick={onCreate} loading={isCreating}>
+                            Create Order
                         </Button>
                     </Group>
                 </Stack>
-            </Modal>
+            </Card>
+
+            <Card withBorder radius="md" p="md">
+                <Stack>
+                    <Group justify="space-between">
+                        <Text fw={700}>Workflow Orders</Text>
+                        <Text size="sm" c="dimmed">
+                            {orders.length} total
+                        </Text>
+                    </Group>
+
+                    <Table striped withTableBorder withColumnBorders highlightOnHover>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Type</Table.Th>
+                                <Table.Th>Amount</Table.Th>
+                                <Table.Th>Status</Table.Th>
+                                <Table.Th>Created</Table.Th>
+                                <Table.Th>Actions</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {orders.map((order) => {
+                                const meta = getStatusMeta(order.status);
+                                const detailsHref = asUserId
+                                    ? `/orders/${order.id}?asUserId=${encodeURIComponent(asUserId)}`
+                                    : `/orders/${order.id}`;
+
+                                return (
+                                    <Table.Tr key={order.id}>
+                                        <Table.Td>{order.orderType}</Table.Td>
+                                        <Table.Td>${order.totalAmount.toFixed(2)}</Table.Td>
+                                        <Table.Td>
+                                            <Badge color={meta.color} variant="light">
+                                                {meta.label}
+                                            </Badge>
+                                        </Table.Td>
+                                        <Table.Td>{new Date(order.createdAtUtc).toLocaleString()}</Table.Td>
+                                        <Table.Td>
+                                            <Group gap="xs">
+                                                <Button
+                                                    component={Link}
+                                                    to={detailsHref}
+                                                    size="xs"
+                                                    variant="light"
+                                                >
+                                                    View
+                                                </Button>
+                                                <Button
+                                                    size="xs"
+                                                    color="red"
+                                                    variant="light"
+                                                    loading={isDeleting}
+                                                    onClick={() => {
+                                                        void onDelete(order.id);
+                                                    }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Group>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                );
+                            })}
+                        </Table.Tbody>
+                    </Table>
+                </Stack>
+            </Card>
         </Stack>
     );
 }

@@ -94,15 +94,14 @@ public sealed class PaymentStubConsumer : BackgroundService
             var payload = Encoding.UTF8.GetString(args.Body.ToArray());
             var orderPaymentRequested = IntegrationEventSerializer.Deserialize<OrderPaymentRequestedMessage>(payload);
 
-            var existingPayment = await db.PaymentEventRecords
+            var currentAttemptNumber = await db.PaymentEventRecords
                 .Where(x => x.OrderId == orderPaymentRequested.OrderId)
-                .OrderBy(x => x.SequenceNumber)
-                .FirstOrDefaultAsync(ct);
+                .MaxAsync(x => (int?)x.AttemptNumber, ct) ?? 0;
 
-            var paymentId = existingPayment?.PaymentId ?? Guid.NewGuid();
-            var nextSequence = await db.PaymentEventRecords
-                .Where(x => x.PaymentId == paymentId)
-                .MaxAsync(x => (int?)x.SequenceNumber, ct) ?? 0;
+            var paymentId = Guid.NewGuid();
+            var attemptNumber = currentAttemptNumber + 1;
+            const int initiatedSequence = 1;
+            const int finalSequence = 2;
 
             var initiated = new PaymentInitiatedMessage(
                 paymentId,
@@ -114,7 +113,8 @@ public sealed class PaymentStubConsumer : BackgroundService
             {
                 PaymentId = paymentId,
                 OrderId = orderPaymentRequested.OrderId,
-                SequenceNumber = nextSequence + 1,
+                AttemptNumber = attemptNumber,
+                SequenceNumber = initiatedSequence,
                 EventType = nameof(PaymentInitiatedMessage),
                 Data = IntegrationEventSerializer.Serialize(initiated),
                 OccurredAtUtc = initiated.OccurredAtUtc
@@ -143,7 +143,8 @@ public sealed class PaymentStubConsumer : BackgroundService
                 {
                     PaymentId = paymentId,
                     OrderId = orderPaymentRequested.OrderId,
-                    SequenceNumber = nextSequence + 2,
+                    AttemptNumber = attemptNumber,
+                    SequenceNumber = finalSequence,
                     EventType = nameof(PaymentAuthorizedMessage),
                     Data = IntegrationEventSerializer.Serialize(authorized),
                     OccurredAtUtc = authorized.OccurredAtUtc
@@ -167,7 +168,8 @@ public sealed class PaymentStubConsumer : BackgroundService
                 {
                     PaymentId = paymentId,
                     OrderId = orderPaymentRequested.OrderId,
-                    SequenceNumber = nextSequence + 2,
+                    AttemptNumber = attemptNumber,
+                    SequenceNumber = finalSequence,
                     EventType = nameof(PaymentFailedMessage),
                     Data = IntegrationEventSerializer.Serialize(failed),
                     OccurredAtUtc = failed.OccurredAtUtc

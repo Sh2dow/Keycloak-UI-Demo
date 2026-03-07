@@ -21,4 +21,12 @@ public class OrderSagaState
     public DateTime? LastPaymentCompletedAtUtc { get; set; }
 
     public DateTime? ExecutionDispatchedAtUtc { get; set; }
+
+    public DateTime? ExecutionStartedAtUtc { get; set; }
+
+    public DateTime? ExecutionCompletedAtUtc { get; set; }
+
+    public DateTime? ExecutionFailedAtUtc { get; set; }
+
+    public string? ExecutionFailureReason { get; set; }
 }

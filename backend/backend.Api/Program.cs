@@ -60,6 +60,7 @@ builder.Services.PostConfigure<RabbitMqOptions>(options =>
     }
 });
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
+builder.Services.Configure<OrderExecutionOptions>(builder.Configuration.GetSection(OrderExecutionOptions.SectionName));
 builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
 builder.Services.AddHostedService<PaymentStubConsumer>();
 builder.Services.AddHostedService<OrderSagaConsumer>();

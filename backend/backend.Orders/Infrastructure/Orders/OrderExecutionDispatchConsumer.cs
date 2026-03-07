@@ -18,17 +18,20 @@ public sealed class OrderExecutionDispatchConsumer : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqConnectionFactory _connectionFactory;
     private readonly RabbitMqOptions _rabbitOptions;
+    private readonly OrderExecutionOptions _executionOptions;
     private readonly ILogger<OrderExecutionDispatchConsumer> _logger;
 
     public OrderExecutionDispatchConsumer(
         IServiceScopeFactory scopeFactory,
         RabbitMqConnectionFactory connectionFactory,
         IOptions<RabbitMqOptions> rabbitOptions,
+        IOptions<OrderExecutionOptions> executionOptions,
         ILogger<OrderExecutionDispatchConsumer> logger)
     {
         _scopeFactory = scopeFactory;
         _connectionFactory = connectionFactory;
         _rabbitOptions = rabbitOptions.Value;
+        _executionOptions = executionOptions.Value;
         _logger = logger;
     }
 
@@ -77,6 +80,7 @@ public sealed class OrderExecutionDispatchConsumer : BackgroundService
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var outbox = scope.ServiceProvider.GetRequiredService<IIntegrationEventOutbox>();
 
             var alreadyProcessed = await db.ConsumedMessages
                 .AnyAsync(x => x.Consumer == ConsumerName && x.MessageId == messageId, ct);
@@ -94,6 +98,50 @@ public sealed class OrderExecutionDispatchConsumer : BackgroundService
                 "Execution dispatch emitted for order {OrderId} and payment {PaymentId}.",
                 dispatched.OrderId,
                 dispatched.PaymentId);
+
+            var started = new OrderExecutionStartedMessage(
+                dispatched.OrderId,
+                dispatched.PaymentId,
+                DateTime.UtcNow);
+
+            await outbox.EnqueueAsync(
+                IntegrationRoutingKeys.OrderExecutionStarted,
+                started,
+                dispatched.OrderId.ToString(),
+                ct);
+
+            if (_executionOptions.StubDelayMilliseconds > 0)
+            {
+                await Task.Delay(_executionOptions.StubDelayMilliseconds, ct);
+            }
+
+            if (_executionOptions.AutoComplete)
+            {
+                var completed = new OrderExecutionCompletedMessage(
+                    dispatched.OrderId,
+                    dispatched.PaymentId,
+                    DateTime.UtcNow);
+
+                await outbox.EnqueueAsync(
+                    IntegrationRoutingKeys.OrderExecutionCompleted,
+                    completed,
+                    dispatched.OrderId.ToString(),
+                    ct);
+            }
+            else
+            {
+                var failed = new OrderExecutionFailedMessage(
+                    dispatched.OrderId,
+                    dispatched.PaymentId,
+                    "Stub execution failure.",
+                    DateTime.UtcNow);
+
+                await outbox.EnqueueAsync(
+                    IntegrationRoutingKeys.OrderExecutionFailed,
+                    failed,
+                    dispatched.OrderId.ToString(),
+                    ct);
+            }
 
             db.ConsumedMessages.Add(new ConsumedMessage
             {

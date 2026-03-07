@@ -137,6 +137,9 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(64);
 
+            entity.Property(x => x.ExecutionFailureReason)
+                .HasMaxLength(1000);
+
             entity.HasIndex(x => x.OrderId)
                 .IsUnique();
         });
@@ -194,6 +197,8 @@ public class AppDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(x => x.OrderId);
+            entity.HasIndex(x => new { x.OrderId, x.AttemptNumber, x.SequenceNumber })
+                .IsUnique();
             entity.HasIndex(x => new { x.PaymentId, x.SequenceNumber })
                 .IsUnique();
         });

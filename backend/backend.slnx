@@ -8,5 +8,6 @@
 	<Project Path="backend.ServiceDefaults/backend.ServiceDefaults.csproj" />
 	<Project Path="backend.Shared/backend.Shared.csproj" />
 	<Project Path="backend.Tasks/backend.Tasks.csproj" />
+	<Project Path="backend.Tests/backend.Tests.csproj" />
 	<Project Path="backend.Users/backend.Users.csproj" />
 </Solution>

@@ -118,6 +118,24 @@ public sealed class OrderSagaConsumer : BackgroundService
                     await HandleExecutionDispatchedAsync(db, dispatched, ct);
                     break;
                 }
+                case nameof(OrderExecutionStartedMessage):
+                {
+                    var started = IntegrationEventSerializer.Deserialize<OrderExecutionStartedMessage>(payload);
+                    await HandleExecutionStartedAsync(db, started, ct);
+                    break;
+                }
+                case nameof(OrderExecutionCompletedMessage):
+                {
+                    var completed = IntegrationEventSerializer.Deserialize<OrderExecutionCompletedMessage>(payload);
+                    await HandleExecutionCompletedAsync(db, completed, ct);
+                    break;
+                }
+                case nameof(OrderExecutionFailedMessage):
+                {
+                    var failedExecution = IntegrationEventSerializer.Deserialize<OrderExecutionFailedMessage>(payload);
+                    await HandleExecutionFailedAsync(db, failedExecution, ct);
+                    break;
+                }
                 default:
                     await channel.BasicAckAsync(args.DeliveryTag, false, ct);
                     return;
@@ -261,10 +279,100 @@ public sealed class OrderSagaConsumer : BackgroundService
         saga.PaymentId ??= dispatched.PaymentId;
         saga.State = OrderSagaStates.ExecutionDispatched;
         saga.ExecutionDispatchedAtUtc = dispatched.DispatchedAtUtc;
+        saga.ExecutionStartedAtUtc = null;
+        saga.ExecutionCompletedAtUtc = null;
+        saga.ExecutionFailedAtUtc = null;
+        saga.ExecutionFailureReason = null;
         saga.UpdatedAtUtc = DateTime.UtcNow;
         saga.Version += 1;
 
         order.Status = OrderStatuses.ExecutionDispatched;
+    }
+
+    private static async Task HandleExecutionStartedAsync(
+        AppDbContext db,
+        OrderExecutionStartedMessage started,
+        CancellationToken ct)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(x => x.Id == started.OrderId, ct)
+            ?? throw new InvalidOperationException($"Order {started.OrderId} was not found for execution start.");
+
+        var saga = await db.OrderSagaStates.FirstOrDefaultAsync(x => x.OrderId == started.OrderId, ct)
+            ?? CreateMissingSaga(db, started.OrderId);
+
+        if (string.Equals(saga.State, OrderSagaStates.ExecutionStarted, StringComparison.OrdinalIgnoreCase)
+            && saga.PaymentId == started.PaymentId)
+        {
+            return;
+        }
+
+        saga.PaymentId ??= started.PaymentId;
+        saga.State = OrderSagaStates.ExecutionStarted;
+        saga.ExecutionStartedAtUtc = started.StartedAtUtc;
+        saga.ExecutionCompletedAtUtc = null;
+        saga.ExecutionFailedAtUtc = null;
+        saga.ExecutionFailureReason = null;
+        saga.UpdatedAtUtc = DateTime.UtcNow;
+        saga.Version += 1;
+
+        order.Status = OrderStatuses.ExecutionStarted;
+    }
+
+    private static async Task HandleExecutionCompletedAsync(
+        AppDbContext db,
+        OrderExecutionCompletedMessage completed,
+        CancellationToken ct)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(x => x.Id == completed.OrderId, ct)
+            ?? throw new InvalidOperationException($"Order {completed.OrderId} was not found for execution completion.");
+
+        var saga = await db.OrderSagaStates.FirstOrDefaultAsync(x => x.OrderId == completed.OrderId, ct)
+            ?? CreateMissingSaga(db, completed.OrderId);
+
+        if (string.Equals(saga.State, OrderSagaStates.ExecutionCompleted, StringComparison.OrdinalIgnoreCase)
+            && saga.PaymentId == completed.PaymentId)
+        {
+            return;
+        }
+
+        saga.PaymentId ??= completed.PaymentId;
+        saga.State = OrderSagaStates.ExecutionCompleted;
+        saga.ExecutionCompletedAtUtc = completed.CompletedAtUtc;
+        saga.ExecutionFailedAtUtc = null;
+        saga.ExecutionFailureReason = null;
+        saga.UpdatedAtUtc = DateTime.UtcNow;
+        saga.Version += 1;
+
+        order.Status = OrderStatuses.ExecutionCompleted;
+    }
+
+    private static async Task HandleExecutionFailedAsync(
+        AppDbContext db,
+        OrderExecutionFailedMessage failed,
+        CancellationToken ct)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(x => x.Id == failed.OrderId, ct)
+            ?? throw new InvalidOperationException($"Order {failed.OrderId} was not found for execution failure.");
+
+        var saga = await db.OrderSagaStates.FirstOrDefaultAsync(x => x.OrderId == failed.OrderId, ct)
+            ?? CreateMissingSaga(db, failed.OrderId);
+
+        if (string.Equals(saga.State, OrderSagaStates.ExecutionFailed, StringComparison.OrdinalIgnoreCase)
+            && saga.PaymentId == failed.PaymentId
+            && string.Equals(saga.ExecutionFailureReason, failed.Reason, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        saga.PaymentId ??= failed.PaymentId;
+        saga.State = OrderSagaStates.ExecutionFailed;
+        saga.ExecutionFailedAtUtc = failed.FailedAtUtc;
+        saga.ExecutionFailureReason = failed.Reason;
+        saga.ExecutionCompletedAtUtc = null;
+        saga.UpdatedAtUtc = DateTime.UtcNow;
+        saga.Version += 1;
+
+        order.Status = OrderStatuses.ExecutionFailed;
     }
 
     private static OrderSagaState CreateMissingSaga(AppDbContext db, Guid orderId)

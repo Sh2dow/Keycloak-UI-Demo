@@ -39,6 +39,33 @@ public class OrdersController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("{id:guid}/payment")]
+    public async Task<IActionResult> GetPayment(Guid id, CancellationToken ct = default)
+    {
+        var details = await _mediator.Send(new GetOrderPaymentDetailsQuery(id), ct);
+        if (details == null) return NotFound();
+        return Ok(details);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/timeline")]
+    public async Task<IActionResult> GetTimeline(Guid id, CancellationToken ct = default)
+    {
+        var timeline = await _mediator.Send(new GetOrderTimelineQuery(id), ct);
+        if (timeline == null) return NotFound();
+        return Ok(timeline);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/workflow")]
+    public async Task<IActionResult> GetWorkflow(Guid id, CancellationToken ct = default)
+    {
+        var workflow = await _mediator.Send(new GetOrderWorkflowQuery(id), ct);
+        if (workflow == null) return NotFound();
+        return Ok(workflow);
+    }
+
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateOrderRequest req, CancellationToken ct = default)
     {
@@ -63,6 +90,14 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> CreatePhysical([FromBody] CreatePhysicalOrderRequest req, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new CreatePhysicalOrderCommand(req.TotalAmount, req.ShippingAddress, req.TrackingNumber), ct);
+        return this.ToActionResult(result);
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/retry-payment")]
+    public async Task<IActionResult> RetryPayment(Guid id, CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new RetryOrderPaymentCommand(id), ct);
         return this.ToActionResult(result);
     }
 
