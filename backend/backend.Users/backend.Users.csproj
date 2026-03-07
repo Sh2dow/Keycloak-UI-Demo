@@ -3,16 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Dtos\UserDtos.cs" />
-    <Compile Include="..\Handlers\Users\**\*.cs" />
-    <Compile Include="..\Mappers\UserMapper.cs" />
-    <Compile Include="..\Requests\Users\**\*.cs" />
-    <Compile Include="..\Validation\Users\**\*.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />

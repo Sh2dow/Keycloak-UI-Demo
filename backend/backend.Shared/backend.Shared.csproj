@@ -3,17 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Application\Abstractions\**\*.cs" />
-    <Compile Include="..\Application\Exceptions\HttpProblemException.cs" />
-    <Compile Include="..\Application\Messaging\**\*.cs" />
-    <Compile Include="..\Application\Results\Result.cs" />
-    <Compile Include="..\Application\Users\ICurrentUserAccessor.cs" />
-    <Compile Include="..\Application\Users\IEffectiveUserAccessor.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />

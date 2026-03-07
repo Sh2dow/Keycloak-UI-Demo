@@ -3,17 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Application\Behaviors\**\*.cs" />
-    <Compile Include="..\Application\Security\**\*.cs" />
-    <Compile Include="..\Application\Users\CurrentUserAccessor.cs" />
-    <Compile Include="..\Application\Users\EffectiveUserAccessor.cs" />
-    <Compile Include="..\Infrastructure\Messaging\**\*.cs" />
-    <Compile Include="GlobalUsings.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />

@@ -3,21 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Application\Orders\OrderSagaStates.cs" />
-    <Compile Include="..\Application\Orders\OrderStatuses.cs" />
-    <Compile Include="..\Dtos\OrderDtos.cs" />
-    <Compile Include="..\Dtos\OrderViewDto.cs" />
-    <Compile Include="GlobalUsings.cs" />
-    <Compile Include="..\Handlers\Orders\**\*.cs" />
-    <Compile Include="..\Infrastructure\Orders\**\*.cs" />
-    <Compile Include="..\Mappers\OrderMapper.cs" />
-    <Compile Include="..\Requests\Orders\**\*.cs" />
-    <Compile Include="..\Validation\Orders\**\*.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />

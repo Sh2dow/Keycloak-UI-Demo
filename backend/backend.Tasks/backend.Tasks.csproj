@@ -3,16 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Dtos\TaskDtos.cs" />
-    <Compile Include="..\Handlers\Tasks\**\*.cs" />
-    <Compile Include="..\Mappers\TaskMapper.cs" />
-    <Compile Include="..\Requests\Tasks\**\*.cs" />
-    <Compile Include="..\Validation\Tasks\**\*.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />
