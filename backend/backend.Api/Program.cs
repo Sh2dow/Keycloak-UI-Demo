@@ -47,6 +47,18 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBe
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
+builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
+builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthServiceOptions>>().Value;
+    if (string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        throw new InvalidOperationException(
+            "AuthService:BaseUrl is missing. Configure it in appsettings.json or provide it via environment variables.");
+    }
+
+    client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+});
 builder.Services.AddScoped<IIntegrationEventOutbox, DbIntegrationEventOutbox>();
 builder.Services.AddSingleton<RabbitMqConnectionFactory>();
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRoleClaimsTransformation>();
@@ -67,7 +79,6 @@ builder.Services.AddHostedService<OrderSagaConsumer>();
 builder.Services.AddHostedService<OrderExecutionDispatchConsumer>();
 
 var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
-
 if (string.IsNullOrWhiteSpace(defaultConnectionString))
 {
     throw new InvalidOperationException(
@@ -88,6 +99,7 @@ builder.Services.AddCors(options =>
 });
 
 var authority = builder.Configuration["Keycloak:Authority"];
+var metadataAddress = builder.Configuration["Keycloak:MetadataAddress"];
 
 if (string.IsNullOrWhiteSpace(authority))
 {
@@ -97,6 +109,9 @@ if (string.IsNullOrWhiteSpace(authority))
 }
 
 var normalizedAuthority = authority.TrimEnd('/');
+var normalizedMetadataAddress = string.IsNullOrWhiteSpace(metadataAddress)
+    ? $"{normalizedAuthority}/.well-known/openid-configuration"
+    : metadataAddress;
 
 builder.Services.AddAuthentication(options =>
     {
@@ -106,7 +121,7 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         options.Authority = normalizedAuthority;
-        options.MetadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
+        options.MetadataAddress = normalizedMetadataAddress;
         options.RequireHttpsMetadata = false;
         options.MapInboundClaims = false;
 
@@ -180,7 +195,7 @@ string FormatRabbitMqTarget(string? connectionString)
 }
 
 app.Logger.LogInformation(
-    "Startup config. Environment={Environment}; Db={DbHost}:{DbPort}/{DbName}; DbFromEnv={DbFromEnv}; RabbitMq={RabbitMq}; RabbitMqFromEnv={RabbitMqFromEnv}; KeycloakAuthority={KeycloakAuthority}",
+    "Startup config. Environment={Environment}; Db={DbHost}:{DbPort}/{DbName}; DbFromEnv={DbFromEnv}; RabbitMq={RabbitMq}; RabbitMqFromEnv={RabbitMqFromEnv}; KeycloakAuthority={KeycloakAuthority}; KeycloakMetadata={KeycloakMetadata}",
     app.Environment.EnvironmentName,
     dbConnectionStringBuilder.Host,
     dbConnectionStringBuilder.Port,
@@ -189,7 +204,8 @@ app.Logger.LogInformation(
     FormatRabbitMqTarget(effectiveRabbitMqTarget),
     !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ConnectionStrings__messaging")) ||
     !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RabbitMq__Uri")),
-    normalizedAuthority);
+    normalizedAuthority,
+    normalizedMetadataAddress);
 
 app.UseSwagger();
 app.UseSwaggerUI();

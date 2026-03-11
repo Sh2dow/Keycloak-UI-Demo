@@ -1,25 +1,23 @@
 using backend.Application.Results;
+using backend.Application.Users;
 using backend.Data;
 using backend.Requests.Users;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Users;
 
 public sealed class DeleteUserHandler : IRequestHandler<DeleteUserCommand, Result<bool>>
 {
-    private readonly AppDbContext _db;
+    private readonly IUserDirectory _userDirectory;
 
-    public DeleteUserHandler(AppDbContext db)
+    public DeleteUserHandler(IUserDirectory userDirectory)
     {
-        _db = db;
+        _userDirectory = userDirectory;
     }
 
     public async Task<Result<bool>> Handle(DeleteUserCommand req, CancellationToken ct)
     {
-        var affected = await _db.AppUsers
-            .Where(x => x.Id == req.Id)
-            .ExecuteDeleteAsync(ct);
+        var affected = await _userDirectory.DeleteByIdAsync(req.Id, ct);
 
         return affected > 0
             ? Result<bool>.Success(true)

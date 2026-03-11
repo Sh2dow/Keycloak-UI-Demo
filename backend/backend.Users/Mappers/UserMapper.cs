@@ -10,19 +10,16 @@ public static partial class UserMapper
 {
     [MapperIgnoreTarget(nameof(AppUser.Id))]
     [MapperIgnoreTarget(nameof(AppUser.CreatedAtUtc))]
-    [MapperIgnoreTarget(nameof(AppUser.Orders))]
-    [MapperIgnoreTarget(nameof(AppUser.Tasks))]
-    [MapperIgnoreTarget(nameof(AppUser.TaskComments))]
     public static partial AppUser ToEntity(this CreateUserCommand command);
 
-    public static UserWithOrdersDto ToDto(this AppUser user) =>
+    public static UserWithOrdersDto ToDto(this AppUser user, IReadOnlyList<Order> orders) =>
         new(
             user.Id,
             user.Subject,
             user.Username,
             user.Email,
             user.CreatedAtUtc,
-            user.Orders
+            orders
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .Select(ToOrderSummaryDto)
                 .ToList()

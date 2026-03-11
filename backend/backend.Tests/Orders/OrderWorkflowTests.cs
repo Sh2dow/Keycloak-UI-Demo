@@ -25,7 +25,6 @@ public sealed class OrderWorkflowTests
         var firstPaymentId = Guid.NewGuid();
         await using var db = CreateDbContext();
 
-        db.AppUsers.Add(user);
         db.Orders.Add(new DigitalOrder
         {
             Id = orderId,
@@ -110,7 +109,6 @@ public sealed class OrderWorkflowTests
         var now = DateTime.UtcNow;
 
         await using var db = CreateDbContext();
-        db.AppUsers.Add(user);
         db.Orders.Add(new PhysicalOrder
         {
             Id = orderId,

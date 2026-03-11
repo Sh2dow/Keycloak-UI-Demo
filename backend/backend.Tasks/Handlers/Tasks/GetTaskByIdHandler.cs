@@ -12,11 +12,13 @@ public sealed class GetTaskByIdHandler : IRequestHandler<GetTaskByIdQuery, TaskI
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
+    private readonly IUserDirectory _userDirectory;
 
-    public GetTaskByIdHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public GetTaskByIdHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
     {
         _db = db;
         _effectiveUser = effectiveUser;
+        _userDirectory = userDirectory;
     }
 
     public async Task<TaskItemDto?> Handle(GetTaskByIdQuery req, CancellationToken ct)
@@ -24,10 +26,16 @@ public sealed class GetTaskByIdHandler : IRequestHandler<GetTaskByIdQuery, TaskI
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var task = await _db.Tasks
             .AsNoTracking()
-            .Where(x => x.Id == req.Id && x.UserId == userId)
-            .ProjectToTaskItemDto()
-            .FirstOrDefaultAsync(ct);
+            .Include(x => x.Comments)
+            .FirstOrDefaultAsync(x => x.Id == req.Id && x.UserId == userId, ct);
 
-        return task;
+        if (task == null)
+        {
+            return null;
+        }
+
+        var usersById = await _userDirectory.GetByIdsAsync(task.Comments.Select(x => x.AuthorId), ct);
+
+        return task.ToDto(usersById);
     }
 }

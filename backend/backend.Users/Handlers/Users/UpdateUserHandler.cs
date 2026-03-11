@@ -1,4 +1,5 @@
 using backend.Application.Results;
+using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
 using backend.Mappers;
@@ -10,27 +11,29 @@ namespace backend.Handlers.Users;
 
 public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Result<UserWithOrdersDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly IUserDirectory _userDirectory;
+    private readonly AppDbContext _appDb;
 
-    public UpdateUserHandler(AppDbContext db)
+    public UpdateUserHandler(IUserDirectory userDirectory, AppDbContext appDb)
     {
-        _db = db;
+        _userDirectory = userDirectory;
+        _appDb = appDb;
     }
 
     public async Task<Result<UserWithOrdersDto>> Handle(UpdateUserCommand req, CancellationToken ct)
     {
-        var user = await _db.AppUsers.FirstOrDefaultAsync(x => x.Id == req.Id, ct);
+        var user = await _userDirectory.FindByIdAsync(req.Id, ct);
         if (user == null) return Result<UserWithOrdersDto>.NotFound("User not found.");
 
         user.Username = req.Username.Trim();
         user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
-        await _db.SaveChangesAsync(ct);
+        user = await _userDirectory.UpdateAsync(user, ct);
 
-        var updated = await _db.AppUsers
+        var orders = await _appDb.Orders
             .AsNoTracking()
-            .Include(x => x.Orders)
-            .FirstAsync(x => x.Id == req.Id, ct);
+            .Where(x => x.UserId == req.Id)
+            .ToListAsync(ct);
 
-        return Result<UserWithOrdersDto>.Success(updated.ToDto());
+        return Result<UserWithOrdersDto>.Success(user.ToDto(orders));
     }
 }

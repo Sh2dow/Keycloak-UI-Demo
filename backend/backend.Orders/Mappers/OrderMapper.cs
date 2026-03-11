@@ -10,14 +10,12 @@ public static partial class OrderMapper
 {
     [MapperIgnoreTarget(nameof(DigitalOrder.Id))]
     [MapperIgnoreTarget(nameof(DigitalOrder.UserId))]
-    [MapperIgnoreTarget(nameof(DigitalOrder.User))]
     [MapperIgnoreTarget(nameof(DigitalOrder.Status))]
     [MapperIgnoreTarget(nameof(DigitalOrder.CreatedAtUtc))]
     public static partial DigitalOrder ToEntity(this CreateDigitalOrderCommand command);
 
     [MapperIgnoreTarget(nameof(PhysicalOrder.Id))]
     [MapperIgnoreTarget(nameof(PhysicalOrder.UserId))]
-    [MapperIgnoreTarget(nameof(PhysicalOrder.User))]
     [MapperIgnoreTarget(nameof(PhysicalOrder.Status))]
     [MapperIgnoreTarget(nameof(PhysicalOrder.CreatedAtUtc))]
     public static partial PhysicalOrder ToEntity(this CreatePhysicalOrderCommand command);

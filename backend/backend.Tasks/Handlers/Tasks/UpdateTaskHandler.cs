@@ -39,7 +39,7 @@ public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Resul
 
         await _db.SaveChangesAsync(ct);
 
-        return Result<TaskItemDto>.Success(task.ToDto() with { Comments = [] });
+        return Result<TaskItemDto>.Success(task.ToDto([]));
     }
 
     private static string NormalizeStatus(string? status)

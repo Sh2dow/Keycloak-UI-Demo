@@ -1,0 +1,142 @@
+services:
+  kc_db:
+    image: postgres:latest
+    container_name: kc_db
+    environment:
+      POSTGRES_DB: keycloak_demo
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5433:5432"
+    volumes:
+      - kc_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    depends_on:
+      kc_db:
+        condition: service_healthy
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://kc_db:5432/keycloak_demo
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: 123
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+
+  app_db:
+    image: postgres:latest
+    container_name: app_db
+    environment:
+      POSTGRES_DB: keycloak_demo
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5432:5432"
+    volumes:
+      - app_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth_db:
+    image: postgres:latest
+    container_name: auth_db
+    environment:
+      POSTGRES_DB: keycloak_demo_auth
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5434:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo_auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend_migrations:
+    build:
+      context: .
+      dockerfile: backend/scripts/Dockerfile.migrations
+    container_name: backend_migrations
+    depends_on:
+      app_db:
+        condition: service_healthy
+      auth_db:
+        condition: service_healthy
+
+  backend_auth_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Auth.Api/Dockerfile
+    container_name: backend_auth_api
+    depends_on:
+      auth_db:
+        condition: service_healthy
+      backend_migrations:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=auth_db;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123
+    ports:
+      - "5001:8080"
+
+  backend_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Api/Dockerfile
+    container_name: backend_api
+    depends_on:
+      app_db:
+        condition: service_healthy
+      backend_auth_api:
+        condition: service_started
+      backend_migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=app_db;Port=5432;Database=keycloak_demo;Username=keycloak;Password=123
+      AuthService__BaseUrl: http://backend_auth_api:8080
+      RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
+      Keycloak__Authority: http://localhost:8080/realms/myrealm
+      Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
+    ports:
+      - "5000:8080"
+
+volumes:
+  kc_db_data:
+  app_db_data:
+  auth_db_data:

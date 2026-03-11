@@ -32,7 +32,7 @@ public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, Resul
         _db.Tasks.Add(task);
         await _db.SaveChangesAsync(ct);
 
-        return Result<TaskItemDto>.Success(task.ToDto() with { Comments = [] });
+        return Result<TaskItemDto>.Success(task.ToDto([]));
     }
 
     private static string NormalizeStatus(string? status)

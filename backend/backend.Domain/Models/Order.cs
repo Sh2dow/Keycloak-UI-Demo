@@ -6,8 +6,6 @@ public abstract class Order
 
     public Guid UserId { get; set; }
 
-    public AppUser User { get; set; } = null!;
-
     public decimal TotalAmount { get; set; }
 
     public string Status { get; set; } = "Pending";

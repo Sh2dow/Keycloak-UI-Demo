@@ -12,7 +12,6 @@ public class AppDbContext : DbContext
 
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
-    public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderSagaState> OrderSagaStates => Set<OrderSagaState>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -42,11 +41,6 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(x => x.UserId);
 
-            entity.HasOne(x => x.User)
-                .WithMany(x => x.Tasks)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             entity.HasMany(x => x.Comments)
                 .WithOne(x => x.Task)
                 .HasForeignKey(x => x.TaskId)
@@ -63,35 +57,6 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(x => x.TaskId);
             entity.HasIndex(x => x.AuthorId);
-
-            entity.HasOne(x => x.Author)
-                .WithMany(x => x.TaskComments)
-                .HasForeignKey(x => x.AuthorId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<AppUser>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Subject)
-                .IsRequired()
-                .HasMaxLength(64);
-
-            entity.Property(x => x.Username)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            entity.Property(x => x.Email)
-                .HasMaxLength(200);
-
-            entity.HasIndex(x => x.Subject)
-                .IsUnique();
-
-            entity.HasMany(x => x.Orders)
-                .WithOne(x => x.User)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Order>(entity =>

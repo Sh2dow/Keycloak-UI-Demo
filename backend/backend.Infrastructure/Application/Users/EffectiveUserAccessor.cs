@@ -1,23 +1,21 @@
 using backend.Application.Exceptions;
-using backend.Data;
 using backend.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Application.Users;
 
 public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
 {
-    private readonly AppDbContext _db;
+    private readonly IUserDirectory _userDirectory;
     private readonly ICurrentUserAccessor _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private AppUser? _cachedUser;
 
     public EffectiveUserAccessor(
-        AppDbContext db,
+        IUserDirectory userDirectory,
         ICurrentUserAccessor currentUser,
         IHttpContextAccessor httpContextAccessor)
     {
-        _db = db;
+        _userDirectory = userDirectory;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
     }
@@ -38,19 +36,7 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
             throw new HttpProblemException(StatusCodes.Status401Unauthorized, "Unauthorized", "Missing sub claim.");
         }
 
-        var currentUser = await _db.AppUsers.FirstOrDefaultAsync(x => x.Subject == sub, ct);
-        if (currentUser == null)
-        {
-            currentUser = new AppUser
-            {
-                Subject = sub,
-                Username = _currentUser.PreferredUsername ?? $"user-{sub[..8]}",
-                Email = _currentUser.Email
-            };
-
-            _db.AppUsers.Add(currentUser);
-            await _db.SaveChangesAsync(ct);
-        }
+        var currentUser = await _userDirectory.EnsureAsync(sub, _currentUser.PreferredUsername, _currentUser.Email, ct);
 
         var rawAsUserId = _httpContextAccessor.HttpContext?.Request.Query["asUserId"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(rawAsUserId))
@@ -78,9 +64,7 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
             throw new HttpProblemException(StatusCodes.Status403Forbidden, "Forbidden", "Admin role is required for impersonation.");
         }
 
-        var targetUser = await _db.AppUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == asUserId, ct);
+        var targetUser = await _userDirectory.FindByIdAsync(asUserId, ct);
 
         if (targetUser == null)
         {

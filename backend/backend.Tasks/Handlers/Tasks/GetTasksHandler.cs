@@ -12,11 +12,13 @@ public sealed class GetTasksHandler : IRequestHandler<GetTasksQuery, IReadOnlyLi
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
+    private readonly IUserDirectory _userDirectory;
 
-    public GetTasksHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public GetTasksHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
     {
         _db = db;
         _effectiveUser = effectiveUser;
+        _userDirectory = userDirectory;
     }
 
     public async Task<IReadOnlyList<TaskItemDto>> Handle(GetTasksQuery req, CancellationToken ct)
@@ -31,9 +33,13 @@ public sealed class GetTasksHandler : IRequestHandler<GetTasksQuery, IReadOnlyLi
             .OrderByDescending(x => x.CreatedAtUtc)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ProjectToTaskItemDto()
+            .Include(x => x.Comments)
             .ToListAsync(ct);
 
-        return tasks;
+        var usersById = await _userDirectory.GetByIdsAsync(
+            tasks.SelectMany(x => x.Comments).Select(x => x.AuthorId),
+            ct);
+
+        return tasks.Select(task => task.ToDto(usersById)).ToList();
     }
 }

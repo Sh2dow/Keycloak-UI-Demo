@@ -14,11 +14,13 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
+    private readonly IUserDirectory _userDirectory;
 
-    public AddTaskCommentHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public AddTaskCommentHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
     {
         _db = db;
         _effectiveUser = effectiveUser;
+        _userDirectory = userDirectory;
     }
 
     public async Task<Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
@@ -38,11 +40,9 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         _db.TaskComments.Add(comment);
         await _db.SaveChangesAsync(ct);
 
-        var created = await _db.TaskComments
-            .AsNoTracking()
-            .Include(x => x.Author)
-            .FirstAsync(x => x.Id == comment.Id, ct);
+        var author = await _userDirectory.FindByIdAsync(userId, ct);
+        var authorUsername = author?.Username ?? $"user-{userId.ToString("N")[..8]}";
 
-        return Result<TaskCommentDto>.Success(created.ToDto());
+        return Result<TaskCommentDto>.Success(comment.ToDto(authorUsername));
     }
 }

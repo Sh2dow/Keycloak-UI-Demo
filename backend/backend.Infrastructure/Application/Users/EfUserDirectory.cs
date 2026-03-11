@@ -1,0 +1,87 @@
+using backend.Data;
+using backend.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace backend.Application.Users;
+
+public sealed class EfUserDirectory : IUserDirectory
+{
+    private readonly AuthDbContext _db;
+
+    public EfUserDirectory(AuthDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<AppUser>> ListAsync(CancellationToken ct = default)
+    {
+        return await _db.AppUsers
+            .AsNoTracking()
+            .OrderBy(x => x.Username)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, AppUser>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
+    {
+        var distinctIds = ids.Distinct().ToArray();
+        if (distinctIds.Length == 0)
+        {
+            return new Dictionary<Guid, AppUser>();
+        }
+
+        return await _db.AppUsers
+            .AsNoTracking()
+            .Where(x => distinctIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, ct);
+    }
+
+    public Task<AppUser?> FindByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return _db.AppUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
+    public Task<AppUser?> FindBySubjectAsync(string subject, CancellationToken ct = default)
+    {
+        return _db.AppUsers.FirstOrDefaultAsync(x => x.Subject == subject, ct);
+    }
+
+    public async Task<AppUser> EnsureAsync(string subject, string? preferredUsername, string? email, CancellationToken ct = default)
+    {
+        var user = await _db.AppUsers.FirstOrDefaultAsync(x => x.Subject == subject, ct);
+        if (user != null)
+        {
+            return user;
+        }
+
+        user = new AppUser
+        {
+            Subject = subject,
+            Username = preferredUsername ?? $"user-{subject[..8]}",
+            Email = email
+        };
+
+        _db.AppUsers.Add(user);
+        await _db.SaveChangesAsync(ct);
+        return user;
+    }
+
+    public async Task<AppUser> CreateAsync(AppUser user, CancellationToken ct = default)
+    {
+        _db.AppUsers.Add(user);
+        await _db.SaveChangesAsync(ct);
+        return user;
+    }
+
+    public Task<int> DeleteByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return _db.AppUsers
+            .Where(x => x.Id == id)
+            .ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<AppUser> UpdateAsync(AppUser user, CancellationToken ct = default)
+    {
+        await _db.SaveChangesAsync(ct);
+        return user;
+    }
+}
