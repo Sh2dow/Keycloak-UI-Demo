@@ -332,6 +332,9 @@ systemctl start docker
 
 usermod -aG docker ubuntu
 
+docker system prune -af || true
+docker volume prune -f || true
+
 TOKEN=\$(curl -fsX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 INSTANCE_PUBLIC_IP=\$(curl -fs -H "X-aws-ec2-metadata-token: \$TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
 DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
@@ -377,6 +380,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --region "$REGION" \
   --image-id "$AMI_ID" \
   --instance-type c7i-flex.large \
+  --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":30,"VolumeType":"gp3","DeleteOnTermination":true}}]' \
   --key-name "$KEY_NAME" \
   --security-group-ids "$SG_ID" \
   --associate-public-ip-address \
