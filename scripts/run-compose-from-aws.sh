@@ -194,9 +194,9 @@ build_database_urls() {
 
   local port="${RDS_PORT:-5432}"
 
-  append_or_replace_env "KEYCLOAK_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_KEYCLOAK_DB}"
-  append_or_replace_env "AUTH_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_AUTH_DB}"
-  append_or_replace_env "APP_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_APP_DB}"
+  append_or_replace_env "KEYCLOAK_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_KEYCLOAK_DB}?sslmode=require"
+  append_or_replace_env "AUTH_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_AUTH_DB}?sslmode=require"
+  append_or_replace_env "APP_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_APP_DB}?sslmode=require"
   append_or_replace_env "DB_HOST" "$RDS_ENDPOINT"
   append_or_replace_env "DB_PORT" "$port"
   append_or_replace_env "DB_USERNAME" "$RDS_USERNAME"
