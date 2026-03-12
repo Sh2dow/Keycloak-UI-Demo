@@ -1,4 +1,4 @@
-FROM amazon/aws-cli:2 AS awscli
+FROM public.ecr.aws/aws-cli/aws-cli:2 AS awscli
 
 FROM quay.io/keycloak/keycloak:latest
 
