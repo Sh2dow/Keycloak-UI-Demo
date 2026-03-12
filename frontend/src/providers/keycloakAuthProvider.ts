@@ -1,11 +1,12 @@
 import type { AuthBindings } from "@refinedev/core";
 import { UserManager, type UserManagerSettings } from "oidc-client-ts";
 
+const appOrigin = window.location.origin;
 const oidcSettings: UserManagerSettings = {
-    authority: "http://localhost:8080/realms/myrealm",
+    authority: import.meta.env.VITE_KEYCLOAK_AUTHORITY ?? "http://localhost:8080/realms/myrealm",
     client_id: "react-client",
-    redirect_uri: "http://localhost:5173",
-    post_logout_redirect_uri: "http://localhost:5173/login",
+    redirect_uri: appOrigin,
+    post_logout_redirect_uri: `${appOrigin}/login`,
     response_type: "code",
     scope: "openid profile email",
     automaticSilentRenew: true,

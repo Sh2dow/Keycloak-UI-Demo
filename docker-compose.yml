@@ -1,73 +1,18 @@
 services:
-  kc_db:
-    image: postgres:latest
-    container_name: kc_db
-    environment:
-      POSTGRES_DB: keycloak_demo
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: 123
-    ports:
-      - "5433:5432"
-    volumes:
-      - kc_db_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    build:
+      context: .
+      dockerfile: keycloak/Dockerfile
     container_name: keycloak
-    depends_on:
-      kc_db:
-        condition: service_healthy
-    command: start-dev
     environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://kc_db:5432/keycloak_demo
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: 123
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      RDS_ENDPOINT: ${RDS_ENDPOINT}
+      RDS_USERNAME: ${RDS_USERNAME:-postgres}
+      RDS_KEYCLOAK_DB: ${RDS_KEYCLOAK_DB:-keycloak_demo}
+      RDS_MASTER_SECRET_ARN: ${RDS_MASTER_SECRET_ARN}
+      KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME: ${KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME:-/keycloak-demo/keycloak/admin-password}
     ports:
       - "8080:8080"
-
-  app_db:
-    image: postgres:latest
-    container_name: app_db
-    environment:
-      POSTGRES_DB: keycloak_demo
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: 123
-    ports:
-      - "5432:5432"
-    volumes:
-      - app_db_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  auth_db:
-    image: postgres:latest
-    container_name: auth_db
-    environment:
-      POSTGRES_DB: keycloak_demo_auth
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: 123
-    ports:
-      - "5434:5432"
-    volumes:
-      - auth_db_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_demo_auth"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -86,11 +31,13 @@ services:
       context: .
       dockerfile: backend/scripts/Dockerfile.migrations
     container_name: backend_migrations
-    depends_on:
-      app_db:
-        condition: service_healthy
-      auth_db:
-        condition: service_healthy
+    environment:
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      RDS_ENDPOINT: ${RDS_ENDPOINT}
+      RDS_USERNAME: ${RDS_USERNAME:-postgres}
+      RDS_AUTH_DB: ${RDS_AUTH_DB:-keycloak_demo_auth}
+      RDS_APP_DB: ${RDS_APP_DB:-keycloak_demo_app}
+      RDS_MASTER_SECRET_ARN: ${RDS_MASTER_SECRET_ARN}
 
   backend_auth_api:
     build:
@@ -98,14 +45,16 @@ services:
       dockerfile: backend/backend.Auth.Api/Dockerfile
     container_name: backend_auth_api
     depends_on:
-      auth_db:
-        condition: service_healthy
       backend_migrations:
         condition: service_completed_successfully
     environment:
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=auth_db;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123
+      RDS_ENDPOINT: ${RDS_ENDPOINT}
+      RDS_USERNAME: ${RDS_USERNAME:-postgres}
+      RDS_AUTH_DB: ${RDS_AUTH_DB:-keycloak_demo_auth}
+      RDS_MASTER_SECRET_ARN: ${RDS_MASTER_SECRET_ARN}
     ports:
       - "5001:8080"
 
@@ -115,8 +64,6 @@ services:
       dockerfile: backend/backend.Api/Dockerfile
     container_name: backend_api
     depends_on:
-      app_db:
-        condition: service_healthy
       backend_auth_api:
         condition: service_started
       backend_migrations:
@@ -126,17 +73,31 @@ services:
       keycloak:
         condition: service_started
     environment:
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=app_db;Port=5432;Database=keycloak_demo;Username=keycloak;Password=123
+      RDS_ENDPOINT: ${RDS_ENDPOINT}
+      RDS_USERNAME: ${RDS_USERNAME:-postgres}
+      RDS_APP_DB: ${RDS_APP_DB:-keycloak_demo_app}
+      RDS_MASTER_SECRET_ARN: ${RDS_MASTER_SECRET_ARN}
       AuthService__BaseUrl: http://backend_auth_api:8080
       RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
-      Keycloak__Authority: http://localhost:8080/realms/myrealm
+      Keycloak__Authority: http://${PUBLIC_HOST:-localhost}:8080/realms/myrealm
       Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
     ports:
       - "5000:8080"
 
-volumes:
-  kc_db_data:
-  app_db_data:
-  auth_db_data:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_KEYCLOAK_AUTHORITY: http://${PUBLIC_HOST:-localhost}:8080/realms/myrealm
+    container_name: frontend
+    depends_on:
+      backend_api:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    ports:
+      - "5173:80"
