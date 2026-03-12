@@ -187,9 +187,12 @@ cat > ssm-parameter-policy.json <<JSON
     {
       "Effect": "Allow",
       "Action": [
-        "ssm:GetParameter"
+        "ssm:GetParameter",
+        "ssm:GetParametersByPath"
       ],
       "Resource": [
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter/keycloak-demo",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter/keycloak-demo/*",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${DB_USERNAME_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${RDS_PASSWORD_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_PARAMETER_NAME}",
