@@ -1,20 +1,19 @@
-FROM public.ecr.aws/aws-cli/aws-cli:2 AS awscli
-
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 
 RUN dotnet tool install --global dotnet-ef --version 10.0.1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 ca-certificates \
+    && apt-get install -y --no-install-recommends python3 ca-certificates curl unzip \
+    && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="${PATH}:/root/.dotnet/tools"
 ENV NUGET_PACKAGES=/root/.nuget/packages
 
 WORKDIR /src
-
-COPY --from=awscli /usr/local/aws-cli /usr/local/aws-cli
-COPY --from=awscli /usr/local/bin/aws /usr/local/bin/aws
 
 COPY backend/backend.Domain/backend.Domain.csproj backend/backend.Domain/
 COPY backend/backend.Shared/backend.Shared.csproj backend/backend.Shared/

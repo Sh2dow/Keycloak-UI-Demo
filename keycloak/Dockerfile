@@ -1,13 +1,13 @@
-FROM public.ecr.aws/aws-cli/aws-cli:2 AS awscli
-
 FROM quay.io/keycloak/keycloak:latest
 
 USER root
 
-COPY --from=awscli /usr/local/aws-cli /usr/local/aws-cli
-COPY --from=awscli /usr/local/bin/aws /usr/local/bin/aws
-
-RUN microdnf install -y python3 \
+RUN microdnf install -y python3 curl unzip \
+    && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \
+    && cd /tmp \
+    && unzip -q awscliv2.zip \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip \
     && microdnf clean all
 
 COPY keycloak/start-keycloak.sh /opt/keycloak/start-keycloak.sh
