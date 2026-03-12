@@ -60,6 +60,7 @@ DB_USERNAME=$(get_required_parameter "$DB_USERNAME_PARAMETER_NAME" "false")
 KEYCLOAK_DB_NAME=$(get_required_parameter "$KEYCLOAK_DB_PARAMETER_NAME" "false")
 AUTH_DB_NAME=$(get_required_parameter "$AUTH_DB_PARAMETER_NAME" "false")
 APP_DB_NAME=$(get_required_parameter "$APP_DB_PARAMETER_NAME" "false")
+KEYCLOAK_ADMIN_PASSWORD=$(get_required_parameter "$KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME" "true")
 echo "Detecting default VPC..."
 
 VPC_ID=$(aws ec2 describe-vpcs \
@@ -357,12 +358,11 @@ rm -f .env
 
 export RDS_ENDPOINT="$RDS_ENDPOINT"
 export RDS_USERNAME="\$DB_USERNAME"
+export RDS_PASSWORD="\$DB_PASSWORD"
 export RDS_KEYCLOAK_DB="\$KEYCLOAK_DB_NAME"
 export RDS_AUTH_DB="\$AUTH_DB_NAME"
 export RDS_APP_DB="\$APP_DB_NAME"
-export RDS_MASTER_SECRET_ARN="$RDS_MASTER_SECRET_ARN"
-export AWS_REGION="$REGION"
-export KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME="$KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME"
+export KEYCLOAK_ADMIN_PASSWORD="$KEYCLOAK_ADMIN_PASSWORD"
 export PUBLIC_HOST="\$INSTANCE_PUBLIC_IP"
 
 docker-compose up -d --build
