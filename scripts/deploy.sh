@@ -8,6 +8,7 @@ REPO_URL="https://github.com/Sh2dow/Keycloak-UI-Demo.git"
 INSTANCE_NAME="keycloak-demo"
 DB_ID="keycloak-demo"
 DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/master-username"
+RDS_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/master-password"
 KEYCLOAK_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-keycloak"
 AUTH_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-auth"
 APP_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-app"
@@ -190,6 +191,7 @@ cat > ssm-parameter-policy.json <<JSON
       ],
       "Resource": [
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${DB_USERNAME_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${RDS_PASSWORD_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${AUTH_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_PARAMETER_NAME}",
@@ -205,16 +207,16 @@ aws iam put-role-policy \
   --policy-name "$SSM_POLICY_NAME" \
   --policy-document file://ssm-parameter-policy.json >/dev/null
 
-cat > secretsmanager-policy.json <<JSON
+cat > rds-read-policy.json <<JSON
 {
   "Version": "2012-10-17",
   "Statement": [
     {
       "Effect": "Allow",
       "Action": [
-        "secretsmanager:GetSecretValue"
+        "rds:DescribeDBInstances"
       ],
-      "Resource": "arn:aws:secretsmanager:$REGION:$ACCOUNT_ID:secret:rds!db-*"
+      "Resource": "arn:aws:rds:$REGION:$ACCOUNT_ID:db:$DB_ID"
     }
   ]
 }
@@ -222,8 +224,8 @@ JSON
 
 aws iam put-role-policy \
   --role-name "$ROLE_NAME" \
-  --policy-name "keycloak-demo-rds-secret-read" \
-  --policy-document file://secretsmanager-policy.json >/dev/null
+  --policy-name "keycloak-demo-rds-read" \
+  --policy-document file://rds-read-policy.json >/dev/null
 
 PROFILE_EXISTS=$(aws iam get-instance-profile \
   --instance-profile-name "$INSTANCE_PROFILE_NAME" \
@@ -308,12 +310,6 @@ RDS_ENDPOINT=$(aws rds describe-db-instances \
   --query "DBInstances[0].Endpoint.Address" \
   --output text)
 
-RDS_MASTER_SECRET_ARN=$(aws rds describe-db-instances \
-  --region "$REGION" \
-  --db-instance-identifier "$DB_ID" \
-  --query "DBInstances[0].MasterUserSecret.SecretArn" \
-  --output text)
-
 echo "RDS endpoint: $RDS_ENDPOINT"
 
 echo "Preparing bootstrap script..."
@@ -338,7 +334,7 @@ docker volume prune -f || true
 TOKEN=\$(curl -fsX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 INSTANCE_PUBLIC_IP=\$(curl -fs -H "X-aws-ec2-metadata-token: \$TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
 DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
-DB_PASSWORD=\$(aws secretsmanager get-secret-value --region "$REGION" --secret-id "$RDS_MASTER_SECRET_ARN" --query "SecretString" --output text | python3 -c "import json,sys; print(json.load(sys.stdin)['password'])")
+DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$RDS_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
 KEYCLOAK_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$KEYCLOAK_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
 AUTH_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$AUTH_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
 APP_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
@@ -395,12 +391,13 @@ PUBLIC_IP=$(aws ec2 describe-instances \
   --query "Reservations[0].Instances[0].PublicIpAddress" \
   --output text)
 
-rm -f user-data.sh trust-policy.json ssm-parameter-policy.json secretsmanager-policy.json
+rm -f user-data.sh trust-policy.json ssm-parameter-policy.json rds-read-policy.json
 
 echo ""
 echo "Server IP: $PUBLIC_IP"
 echo "RDS endpoint: $RDS_ENDPOINT"
 echo "SSM username parameter: $DB_USERNAME_PARAMETER_NAME"
+echo "SSM password parameter: $RDS_PASSWORD_PARAMETER_NAME"
 echo "SSM Keycloak DB parameter: $KEYCLOAK_DB_PARAMETER_NAME"
 echo "SSM auth DB parameter: $AUTH_DB_PARAMETER_NAME"
 echo "SSM app DB parameter: $APP_DB_PARAMETER_NAME"

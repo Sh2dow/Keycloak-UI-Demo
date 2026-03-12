@@ -2,50 +2,41 @@
 set -euo pipefail
 
 REGION="${AWS_REGION:-eu-central-1}"
-DB_ID="${DB_ID:-keycloak-demo}"
-DB_USERNAME_PARAMETER_NAME="${DB_USERNAME_PARAMETER_NAME:-/keycloak-demo/rds/master-username}"
-KEYCLOAK_DB_PARAMETER_NAME="${KEYCLOAK_DB_PARAMETER_NAME:-/keycloak-demo/rds/db-name-keycloak}"
-AUTH_DB_PARAMETER_NAME="${AUTH_DB_PARAMETER_NAME:-/keycloak-demo/rds/db-name-auth}"
-APP_DB_PARAMETER_NAME="${APP_DB_PARAMETER_NAME:-/keycloak-demo/rds/db-name-app}"
-KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME="${KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME:-/keycloak-demo/keycloak/admin-password}"
+APP_NAME="${APP_NAME:-keycloak-demo}"
+ENVIRONMENT="${ENVIRONMENT:-dev}"
+PARAM_PATH="${PARAM_PATH:-/$APP_NAME/$ENVIRONMENT}"
+DB_ID="${DB_ID:-$APP_NAME}"
+LOCAL_FALLBACK_ENV_FILE="${LOCAL_FALLBACK_ENV_FILE:-.env.local}"
+GENERATED_ENV_FILE="${GENERATED_ENV_FILE:-.env.runtime}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GENERATED_ENV_PATH="$REPO_ROOT/$GENERATED_ENV_FILE"
+LOCAL_FALLBACK_ENV_PATH="$REPO_ROOT/$LOCAL_FALLBACK_ENV_FILE"
 
-for command_name in aws sed docker; do
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    echo "Missing required command: $command_name" >&2
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing dependency: $1" >&2
     exit 1
-  fi
-done
+  }
+}
 
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE_CMD=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE_CMD=(docker-compose)
-else
-  echo "Missing Docker Compose. Install 'docker compose' or 'docker-compose'." >&2
-  exit 1
-fi
+log() {
+  echo "[run-compose] $*"
+}
 
-get_parameter() {
-  local parameter_name="$1"
-  local decrypt="${2:-false}"
+cleanup() {
+  rm -f "$GENERATED_ENV_PATH"
+}
 
-  if [ "$decrypt" = "true" ]; then
-    aws ssm get-parameter \
-      --region "$REGION" \
-      --name "$parameter_name" \
-      --with-decryption \
-      --query "Parameter.Value" \
-      --output text
-  else
-    aws ssm get-parameter \
-      --region "$REGION" \
-      --name "$parameter_name" \
-      --query "Parameter.Value" \
-      --output text
-  fi
+trap cleanup EXIT
+
+mask_env_output() {
+  sed -E \
+    -e 's/(PASSWORD=).*/\1****/g' \
+    -e 's/(SECRET=).*/\1****/g' \
+    -e 's/(TOKEN=).*/\1****/g' \
+    -e 's/(KEY=).*/\1****/g'
 }
 
 get_public_ip() {
@@ -62,35 +53,194 @@ get_public_ip() {
   fi
 }
 
-echo "Resolving RDS and compose parameters from AWS..."
+fetch_ssm_page() {
+  local next_token="${1:-}"
 
-export AWS_REGION="$REGION"
-export RDS_ENDPOINT="$(aws rds describe-db-instances \
-  --region "$REGION" \
-  --db-instance-identifier "$DB_ID" \
-  --query "DBInstances[0].Endpoint.Address" \
-  --output text)"
-export RDS_MASTER_SECRET_ARN="$(aws rds describe-db-instances \
-  --region "$REGION" \
-  --db-instance-identifier "$DB_ID" \
-  --query "DBInstances[0].MasterUserSecret.SecretArn" \
-  --output text)"
-export RDS_USERNAME="$(get_parameter "$DB_USERNAME_PARAMETER_NAME")"
-export RDS_KEYCLOAK_DB="$(get_parameter "$KEYCLOAK_DB_PARAMETER_NAME")"
-export RDS_AUTH_DB="$(get_parameter "$AUTH_DB_PARAMETER_NAME")"
-export RDS_APP_DB="$(get_parameter "$APP_DB_PARAMETER_NAME")"
-export KEYCLOAK_ADMIN_PASSWORD="$(get_parameter "$KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME" true)"
-export RDS_PASSWORD="$(aws secretsmanager get-secret-value \
-  --region "$REGION" \
-  --secret-id "$RDS_MASTER_SECRET_ARN" \
-  --query "SecretString" \
-  --output text | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-export PUBLIC_HOST="${PUBLIC_HOST:-$(get_public_ip)}"
+  if [ -n "$next_token" ]; then
+    aws ssm get-parameters-by-path \
+      --region "$REGION" \
+      --path "$PARAM_PATH" \
+      --recursive \
+      --with-decryption \
+      --output json \
+      --starting-token "$next_token"
+  else
+    aws ssm get-parameters-by-path \
+      --region "$REGION" \
+      --path "$PARAM_PATH" \
+      --recursive \
+      --with-decryption \
+      --output json
+  fi
+}
 
-if [ -z "$RDS_ENDPOINT" ] || [ -z "$RDS_PASSWORD" ]; then
-  echo "Failed to resolve RDS connection details from AWS." >&2
-  exit 1
-fi
+write_env_from_ssm() {
+  : > "$GENERATED_ENV_PATH"
 
-cd "$REPO_ROOT"
-"${COMPOSE_CMD[@]}" "$@"
+  local next_token=""
+  local pages=0
+
+  while :; do
+    local json
+    json="$(fetch_ssm_page "$next_token")"
+
+    echo "$json" | jq -r '
+      .Parameters[]
+      | [.Name, .Value]
+      | @tsv
+    ' | while IFS=$'\t' read -r name value; do
+      case "$name" in
+        "$PARAM_PATH/rds/master-username")
+          printf 'RDS_USERNAME=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$PARAM_PATH/rds/master-password")
+          printf 'RDS_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$PARAM_PATH/rds/db-name-keycloak")
+          printf 'RDS_KEYCLOAK_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$PARAM_PATH/rds/db-name-auth")
+          printf 'RDS_AUTH_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$PARAM_PATH/rds/db-name-app")
+          printf 'RDS_APP_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$PARAM_PATH/keycloak/admin-password")
+          printf 'KEYCLOAK_ADMIN_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+      esac
+    done
+
+    next_token="$(echo "$json" | jq -r '.NextToken // empty')"
+    pages=$((pages + 1))
+
+    [ -z "$next_token" ] && break
+  done
+
+  if [ ! -s "$GENERATED_ENV_PATH" ]; then
+    return 1
+  fi
+
+  log "Fetched SSM parameters from $PARAM_PATH ($pages page(s))"
+}
+
+append_or_replace_env() {
+  local key="$1"
+  local value="$2"
+
+  if grep -q "^${key}=" "$GENERATED_ENV_PATH" 2>/dev/null; then
+    awk -v k="$key" -v v="$value" '
+      BEGIN { replaced = 0 }
+      $0 ~ "^" k "=" {
+        print k "=" v
+        replaced = 1
+        next
+      }
+      { print }
+      END {
+        if (replaced == 0) {
+          print k "=" v
+        }
+      }
+    ' "$GENERATED_ENV_PATH" > "${GENERATED_ENV_PATH}.tmp"
+    mv "${GENERATED_ENV_PATH}.tmp" "$GENERATED_ENV_PATH"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$GENERATED_ENV_PATH"
+  fi
+}
+
+build_database_urls() {
+  set +u
+  # shellcheck disable=SC1090
+  . "$GENERATED_ENV_PATH"
+  set -u
+
+  : "${RDS_USERNAME:?Missing RDS_USERNAME}"
+  : "${RDS_PASSWORD:?Missing RDS_PASSWORD}"
+  : "${RDS_KEYCLOAK_DB:?Missing RDS_KEYCLOAK_DB}"
+  : "${RDS_AUTH_DB:?Missing RDS_AUTH_DB}"
+  : "${RDS_APP_DB:?Missing RDS_APP_DB}"
+  : "${RDS_ENDPOINT:?Missing RDS_ENDPOINT}"
+
+  local port="${RDS_PORT:-5432}"
+
+  append_or_replace_env "KEYCLOAK_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_KEYCLOAK_DB}"
+  append_or_replace_env "AUTH_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_AUTH_DB}"
+  append_or_replace_env "APP_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_APP_DB}"
+  append_or_replace_env "DB_HOST" "$RDS_ENDPOINT"
+  append_or_replace_env "DB_PORT" "$port"
+  append_or_replace_env "DB_USERNAME" "$RDS_USERNAME"
+  append_or_replace_env "DB_PASSWORD" "$RDS_PASSWORD"
+  append_or_replace_env "KEYCLOAK_DB_NAME" "$RDS_KEYCLOAK_DB"
+  append_or_replace_env "AUTH_DB_NAME" "$RDS_AUTH_DB"
+  append_or_replace_env "APP_DB_NAME" "$RDS_APP_DB"
+}
+
+load_local_fallback() {
+  if [ ! -f "$LOCAL_FALLBACK_ENV_PATH" ]; then
+    echo "AWS config unavailable and fallback file not found: $LOCAL_FALLBACK_ENV_PATH" >&2
+    exit 1
+  fi
+
+  cp "$LOCAL_FALLBACK_ENV_PATH" "$GENERATED_ENV_PATH"
+  log "Using local fallback env: $LOCAL_FALLBACK_ENV_FILE"
+}
+
+main() {
+  require aws
+  require jq
+  require docker
+  require curl
+
+  if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker compose)
+  elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker-compose)
+  else
+    echo "Missing Docker Compose. Install 'docker compose' or 'docker-compose'." >&2
+    exit 1
+  fi
+
+  log "Resolving config for app=$APP_NAME env=$ENVIRONMENT region=$REGION"
+  log "SSM path: $PARAM_PATH"
+
+  if write_env_from_ssm; then
+    local endpoint
+    endpoint="$(aws rds describe-db-instances \
+      --region "$REGION" \
+      --db-instance-identifier "$DB_ID" \
+      --query 'DBInstances[0].Endpoint.Address' \
+      --output text)"
+
+    if [ -z "$endpoint" ] || [ "$endpoint" = "None" ]; then
+      echo "Failed to resolve RDS endpoint for DB instance: $DB_ID" >&2
+      exit 1
+    fi
+
+    append_or_replace_env "AWS_REGION" "$REGION"
+    append_or_replace_env "APP_NAME" "$APP_NAME"
+    append_or_replace_env "ENVIRONMENT" "$ENVIRONMENT"
+    append_or_replace_env "RDS_ENDPOINT" "$endpoint"
+    append_or_replace_env "RDS_PORT" "${RDS_PORT:-5432}"
+    append_or_replace_env "PUBLIC_HOST" "${PUBLIC_HOST:-$(get_public_ip)}"
+
+    build_database_urls
+  else
+    log "Could not load parameters from AWS SSM path: $PARAM_PATH"
+    load_local_fallback
+  fi
+
+  chmod 600 "$GENERATED_ENV_PATH"
+
+  log "Generated env file: $GENERATED_ENV_FILE"
+  cat "$GENERATED_ENV_PATH" | mask_env_output
+
+  cd "$REPO_ROOT"
+  if [ "$#" -eq 0 ]; then
+    set -- up -d --build
+  fi
+
+  "${COMPOSE_CMD[@]}" --env-file "$GENERATED_ENV_PATH" "$@"
+}
+
+main "$@"
