@@ -102,22 +102,22 @@ try_write_env_from_ssm() {
     ' | while IFS=$'\t' read -r name value; do
       case "$name" in
         "$path/rds/master-username")
-          printf 'RDS_USERNAME=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/master-password")
-          printf 'RDS_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/db-name-keycloak")
-          printf 'RDS_KEYCLOAK_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_KEYCLOAK_DB=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/db-name-auth")
-          printf 'RDS_AUTH_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_AUTH_DB=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/db-name-app")
-          printf 'RDS_APP_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_APP_DB=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/keycloak/admin-password")
-          printf 'KEYCLOAK_ADMIN_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'KEYCLOAK_ADMIN_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
       esac
     done
