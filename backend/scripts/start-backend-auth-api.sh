@@ -20,7 +20,7 @@ RDS_PASSWORD="$(aws secretsmanager get-secret-value \
   --region "$AWS_REGION" \
   --secret-id "$RDS_MASTER_SECRET_ARN" \
   --query 'SecretString' \
-  --output text | python3 -c "import json,sys; print(json.load(sys.stdin)['password'])")"
+  --output text | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
 
 export ConnectionStrings__Default="Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_AUTH_DB};Username=${RDS_USERNAME};Password=${RDS_PASSWORD}"
 
