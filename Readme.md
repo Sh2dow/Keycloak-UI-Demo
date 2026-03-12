@@ -192,3 +192,10 @@ Then go: `http://localhost:5173`
 * **Role mapping**: I mapped **realm roles** to ASP.NET roles. If you prefer **client roles** (better in many orgs), I’ll adjust the mapping.
 
 ---
+
+
+  Run deploy.sh locally from your machine, not on the EC2 box. It uses your local AWS credentials to:
+
+  - create/update IAM role policies
+  - create/update RDS
+  - launch/update EC2 bootstrap behavior

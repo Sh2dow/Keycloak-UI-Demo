@@ -54,12 +54,19 @@ get_public_ip() {
 }
 
 fetch_ssm_page() {
-  local next_token="${1:-}"
+  local path="$1"
+  local next_token=""
+
+  if [ "$#" -ge 2 ]; then
+    next_token="$2"
+  else
+    next_token=""
+  fi
 
   if [ -n "$next_token" ]; then
     aws ssm get-parameters-by-path \
       --region "$REGION" \
-      --path "$PARAM_PATH" \
+      --path "$path" \
       --recursive \
       --with-decryption \
       --output json \
@@ -67,14 +74,16 @@ fetch_ssm_page() {
   else
     aws ssm get-parameters-by-path \
       --region "$REGION" \
-      --path "$PARAM_PATH" \
+      --path "$path" \
       --recursive \
       --with-decryption \
       --output json
   fi
 }
 
-write_env_from_ssm() {
+try_write_env_from_ssm() {
+  local path="$1"
+
   : > "$GENERATED_ENV_PATH"
 
   local next_token=""
@@ -82,7 +91,9 @@ write_env_from_ssm() {
 
   while :; do
     local json
-    json="$(fetch_ssm_page "$next_token")"
+    if ! json="$(fetch_ssm_page "$path" "$next_token" 2>/dev/null)"; then
+      return 1
+    fi
 
     echo "$json" | jq -r '
       .Parameters[]
@@ -90,22 +101,22 @@ write_env_from_ssm() {
       | @tsv
     ' | while IFS=$'\t' read -r name value; do
       case "$name" in
-        "$PARAM_PATH/rds/master-username")
+        "$path/rds/master-username")
           printf 'RDS_USERNAME=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
-        "$PARAM_PATH/rds/master-password")
+        "$path/rds/master-password")
           printf 'RDS_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
-        "$PARAM_PATH/rds/db-name-keycloak")
+        "$path/rds/db-name-keycloak")
           printf 'RDS_KEYCLOAK_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
-        "$PARAM_PATH/rds/db-name-auth")
+        "$path/rds/db-name-auth")
           printf 'RDS_AUTH_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
-        "$PARAM_PATH/rds/db-name-app")
+        "$path/rds/db-name-app")
           printf 'RDS_APP_DB=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
-        "$PARAM_PATH/keycloak/admin-password")
+        "$path/keycloak/admin-password")
           printf 'KEYCLOAK_ADMIN_PASSWORD=%q\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
       esac
@@ -121,7 +132,26 @@ write_env_from_ssm() {
     return 1
   fi
 
-  log "Fetched SSM parameters from $PARAM_PATH ($pages page(s))"
+  log "Fetched SSM parameters from $path ($pages page(s))"
+  return 0
+}
+
+write_env_from_ssm() {
+  local primary_path="$PARAM_PATH"
+  local fallback_path="/$APP_NAME"
+
+  if try_write_env_from_ssm "$primary_path"; then
+    PARAM_PATH="$primary_path"
+    return 0
+  fi
+
+  if [ "$primary_path" != "$fallback_path" ] && try_write_env_from_ssm "$fallback_path"; then
+    log "Primary path $primary_path unavailable, fell back to $fallback_path"
+    PARAM_PATH="$fallback_path"
+    return 0
+  fi
+
+  return 1
 }
 
 append_or_replace_env() {
