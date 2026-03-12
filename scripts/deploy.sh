@@ -359,16 +359,7 @@ cd project
 
 rm -f .env
 
-export RDS_ENDPOINT="$RDS_ENDPOINT"
-export RDS_USERNAME="\$DB_USERNAME"
-export RDS_PASSWORD="\$DB_PASSWORD"
-export RDS_KEYCLOAK_DB="\$KEYCLOAK_DB_NAME"
-export RDS_AUTH_DB="\$AUTH_DB_NAME"
-export RDS_APP_DB="\$APP_DB_NAME"
-export KEYCLOAK_ADMIN_PASSWORD="$KEYCLOAK_ADMIN_PASSWORD"
-export PUBLIC_HOST="\$INSTANCE_PUBLIC_IP"
-
-docker-compose up -d --build
+PUBLIC_HOST="\$INSTANCE_PUBLIC_IP" bash ./scripts/run-compose-from-aws.sh up -d --build
 INNER
 EOF
 
