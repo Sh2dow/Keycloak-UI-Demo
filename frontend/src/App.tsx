@@ -71,7 +71,7 @@ function ShellLayout() {
                 <Group h="100%" px="md" justify="space-between">
                     <Group>
                         <Burger opened={opened} onClick={() => setOpened((value) => !value)} hiddenFrom="sm" size="sm" />
-                        <Text fw={700}>Keycloak Refine Console</Text>
+                        <Text fw={700}>.Net Crud Demo Dashboard</Text>
                     </Group>
                     <Group>
                         <Text size="sm" c="dimmed">
