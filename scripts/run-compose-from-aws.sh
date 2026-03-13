@@ -236,16 +236,33 @@ configure_public_urls() {
 
   local public_host="${PUBLIC_HOST:-$(get_public_ip)}"
   local public_scheme="${PUBLIC_SCHEME:-http}"
-  local keycloak_hostname="${KEYCLOAK_PUBLIC_HOSTNAME:-$public_host}"
+  local keycloak_hostname="${KEYCLOAK_PUBLIC_HOSTNAME:-}"
   local app_hostname="${APP_PUBLIC_HOSTNAME:-$public_host}"
   local api_hostname="${API_PUBLIC_HOSTNAME:-$public_host}"
   local keycloak_scheme="${KEYCLOAK_PUBLIC_SCHEME:-$public_scheme}"
   local app_scheme="${APP_PUBLIC_SCHEME:-$public_scheme}"
   local api_scheme="${API_PUBLIC_SCHEME:-$public_scheme}"
-  local keycloak_url="${KEYCLOAK_PUBLIC_URL:-${keycloak_scheme}://${keycloak_hostname}}"
-  local keycloak_realm_url="${KEYCLOAK_REALM_URL:-${keycloak_url}/realms/myrealm}"
+  local keycloak_url="${KEYCLOAK_PUBLIC_URL:-}"
+  local keycloak_realm_url="${KEYCLOAK_REALM_URL:-}"
+  local keycloak_client_url="http://${public_host}:8080"
+  local keycloak_proxy_headers="${KEYCLOAK_PROXY_HEADERS:-}"
+  local keycloak_hostname_strict="${KEYCLOAK_HOSTNAME_STRICT:-false}"
   local app_public_url="${APP_PUBLIC_URL:-${app_scheme}://${app_hostname}}"
   local api_public_url="${API_PUBLIC_URL:-${api_scheme}://${api_hostname}}"
+
+  if [ -n "$keycloak_hostname" ] && [ -z "$keycloak_url" ]; then
+    keycloak_url="${keycloak_scheme}://${keycloak_hostname}"
+  fi
+
+  if [ -n "$keycloak_url" ] && [ -z "$keycloak_realm_url" ]; then
+    keycloak_realm_url="${keycloak_url}/realms/myrealm"
+  elif [ -z "$keycloak_realm_url" ]; then
+    keycloak_realm_url="${keycloak_client_url}/realms/myrealm"
+  fi
+
+  if [ -n "$keycloak_url" ] && [ -z "$keycloak_proxy_headers" ]; then
+    keycloak_proxy_headers="xforwarded"
+  fi
 
   append_or_replace_env "PUBLIC_HOST" "$public_host"
   append_or_replace_env "PUBLIC_SCHEME" "$public_scheme"
@@ -253,6 +270,8 @@ configure_public_urls() {
   append_or_replace_env "KEYCLOAK_PUBLIC_SCHEME" "$keycloak_scheme"
   append_or_replace_env "KEYCLOAK_PUBLIC_URL" "$keycloak_url"
   append_or_replace_env "KEYCLOAK_REALM_URL" "$keycloak_realm_url"
+  append_or_replace_env "KEYCLOAK_PROXY_HEADERS" "$keycloak_proxy_headers"
+  append_or_replace_env "KEYCLOAK_HOSTNAME_STRICT" "$keycloak_hostname_strict"
   append_or_replace_env "APP_PUBLIC_HOSTNAME" "$app_hostname"
   append_or_replace_env "APP_PUBLIC_SCHEME" "$app_scheme"
   append_or_replace_env "APP_PUBLIC_URL" "$app_public_url"
@@ -307,6 +326,7 @@ main() {
     append_or_replace_env "ENVIRONMENT" "$ENVIRONMENT"
     append_or_replace_env "RDS_ENDPOINT" "$endpoint"
     append_or_replace_env "RDS_PORT" "${RDS_PORT:-5432}"
+    append_or_replace_env "KEYCLOAK_START_COMMAND" "${KEYCLOAK_START_COMMAND:-start-dev}"
 
     build_database_urls
     configure_public_urls
