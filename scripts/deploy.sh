@@ -374,7 +374,7 @@ ensure_role_and_database() {
   PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres \
     --set=role_name="\$app_username" \
     --set=role_password="\$app_password" <<'SQL'
-DO $do$
+DO \$do\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role_name') THEN
     EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password');
@@ -382,7 +382,7 @@ BEGIN
     EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'role_name', :'role_password');
   END IF;
 END
-$do$;
+\$do\$;
 SQL
 
   EXISTS=\$(PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\$db_name'")
