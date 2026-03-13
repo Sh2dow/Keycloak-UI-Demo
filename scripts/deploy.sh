@@ -23,6 +23,42 @@ ROLE_NAME="keycloak-demo-ec2-role"
 INSTANCE_PROFILE_NAME="keycloak-demo-ec2-profile"
 SSM_POLICY_NAME="keycloak-demo-ssm-parameter-read"
 DB_SUBNET_GROUP_NAME="keycloak-demo-db-subnet-group"
+CERT_ARN="${CERT_ARN:-}"
+BASE_DOMAIN="${BASE_DOMAIN:-}"
+KEYCLOAK_PUBLIC_HOSTNAME="${KEYCLOAK_PUBLIC_HOSTNAME:-}"
+APP_PUBLIC_HOSTNAME="${APP_PUBLIC_HOSTNAME:-}"
+API_PUBLIC_HOSTNAME="${API_PUBLIC_HOSTNAME:-}"
+HOSTED_ZONE_ID="${HOSTED_ZONE_ID:-}"
+LOCK_DOWN_PUBLIC_PORTS="${LOCK_DOWN_PUBLIC_PORTS:-false}"
+APPLY_SSL_RUNTIME="${APPLY_SSL_RUNTIME:-false}"
+
+if [ -n "$BASE_DOMAIN" ]; then
+  KEYCLOAK_PUBLIC_HOSTNAME="${KEYCLOAK_PUBLIC_HOSTNAME:-auth.$BASE_DOMAIN}"
+  APP_PUBLIC_HOSTNAME="${APP_PUBLIC_HOSTNAME:-app.$BASE_DOMAIN}"
+  API_PUBLIC_HOSTNAME="${API_PUBLIC_HOSTNAME:-api.$BASE_DOMAIN}"
+fi
+
+if [ -z "$CERT_ARN" ] && [ -n "$KEYCLOAK_PUBLIC_HOSTNAME" ] && [ -n "$APP_PUBLIC_HOSTNAME" ] && [ -n "$API_PUBLIC_HOSTNAME" ]; then
+  echo "Resolving ACM certificate and hosted zone..."
+  ACM_OUTPUT="$(
+    AWS_REGION="$REGION" \
+    APP_NAME="$INSTANCE_NAME" \
+    BASE_DOMAIN="$BASE_DOMAIN" \
+    KEYCLOAK_PUBLIC_HOSTNAME="$KEYCLOAK_PUBLIC_HOSTNAME" \
+    APP_PUBLIC_HOSTNAME="$APP_PUBLIC_HOSTNAME" \
+    API_PUBLIC_HOSTNAME="$API_PUBLIC_HOSTNAME" \
+    HOSTED_ZONE_ID="$HOSTED_ZONE_ID" \
+    CERT_ARN="$CERT_ARN" \
+    ./scripts/request-acm-certificate.sh
+  )"
+  echo "$ACM_OUTPUT"
+
+  CERT_ARN="$(printf '%s\n' "$ACM_OUTPUT" | awk -F= '/^CERT_ARN=/{print $2}' | tail -n 1)"
+  HOSTED_ZONE_ID="$(printf '%s\n' "$ACM_OUTPUT" | awk -F= '/^HOSTED_ZONE_ID=/{print $2}' | tail -n 1)"
+  KEYCLOAK_PUBLIC_HOSTNAME="$(printf '%s\n' "$ACM_OUTPUT" | awk -F= '/^KEYCLOAK_PUBLIC_HOSTNAME=/{print $2}' | tail -n 1)"
+  APP_PUBLIC_HOSTNAME="$(printf '%s\n' "$ACM_OUTPUT" | awk -F= '/^APP_PUBLIC_HOSTNAME=/{print $2}' | tail -n 1)"
+  API_PUBLIC_HOSTNAME="$(printf '%s\n' "$ACM_OUTPUT" | awk -F= '/^API_PUBLIC_HOSTNAME=/{print $2}' | tail -n 1)"
+fi
 
 echo "Finding latest Ubuntu 22.04 AMI..."
 
@@ -442,6 +478,29 @@ PUBLIC_IP=$(aws ec2 describe-instances \
 
 rm -f user-data.sh trust-policy.json ssm-parameter-policy.json rds-read-policy.json
 
+ALB_DNS_NAME=""
+if [ -n "$CERT_ARN" ] && [ -n "$KEYCLOAK_PUBLIC_HOSTNAME" ] && [ -n "$APP_PUBLIC_HOSTNAME" ] && [ -n "$API_PUBLIC_HOSTNAME" ]; then
+  echo ""
+  echo "Provisioning HTTPS / ALB layer..."
+
+  ALB_OUTPUT="$(
+    CERT_ARN="$CERT_ARN" \
+    KEYCLOAK_PUBLIC_HOSTNAME="$KEYCLOAK_PUBLIC_HOSTNAME" \
+    APP_PUBLIC_HOSTNAME="$APP_PUBLIC_HOSTNAME" \
+    API_PUBLIC_HOSTNAME="$API_PUBLIC_HOSTNAME" \
+    HOSTED_ZONE_ID="$HOSTED_ZONE_ID" \
+    LOCK_DOWN_PUBLIC_PORTS="$LOCK_DOWN_PUBLIC_PORTS" \
+    APPLY_RUNTIME="$APPLY_SSL_RUNTIME" \
+    INSTANCE_NAME="$INSTANCE_NAME" \
+    APP_NAME="$INSTANCE_NAME" \
+    AWS_REGION="$REGION" \
+    ./scripts/provision-ssl-alb.sh
+  )"
+  echo "$ALB_OUTPUT"
+
+  ALB_DNS_NAME="$(printf '%s\n' "$ALB_OUTPUT" | awk -F': ' '/^ALB DNS:/ {print $2}' | tail -n 1)"
+fi
+
 echo ""
 echo "Server IP: $PUBLIC_IP"
 echo "RDS endpoint: $RDS_ENDPOINT"
@@ -469,3 +528,11 @@ echo "RabbitMQ:  http://$PUBLIC_IP:15672"
 echo ""
 echo "SSH command:"
 echo "ssh -i $KEY_NAME.pem ubuntu@$PUBLIC_IP"
+
+if [ -n "$ALB_DNS_NAME" ]; then
+  echo ""
+  echo "ALB DNS: $ALB_DNS_NAME"
+  echo "Keycloak HTTPS: https://$KEYCLOAK_PUBLIC_HOSTNAME"
+  echo "Frontend HTTPS: https://$APP_PUBLIC_HOSTNAME"
+  echo "API HTTPS: https://$API_PUBLIC_HOSTNAME"
+fi
