@@ -292,7 +292,22 @@ main() {
     set -- up -d --build
   fi
 
-  "${COMPOSE_CMD[@]}" --env-file "$GENERATED_ENV_PATH" "$@"
+  env \
+    -u RDS_ENDPOINT \
+    -u RDS_USERNAME \
+    -u RDS_PASSWORD \
+    -u RDS_KEYCLOAK_DB \
+    -u RDS_AUTH_DB \
+    -u RDS_APP_DB \
+    -u KEYCLOAK_ADMIN_PASSWORD \
+    -u KEYCLOAK_DB_USERNAME \
+    -u KEYCLOAK_DB_PASSWORD \
+    -u AUTH_DB_USERNAME \
+    -u AUTH_DB_PASSWORD \
+    -u APP_DB_USERNAME \
+    -u APP_DB_PASSWORD \
+    -u PUBLIC_HOST \
+    "${COMPOSE_CMD[@]}" --env-file "$GENERATED_ENV_PATH" "$@"
 }
 
 main "$@"

@@ -370,20 +370,17 @@ ensure_role_and_database() {
   local db_name="\$1"
   local app_username="\$2"
   local app_password="\$3"
+  local escaped_password
+
+  if [[ ! "\$app_username" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo "Invalid database username: \$app_username" >&2
+    exit 1
+  fi
+
+  escaped_password=\${app_password//\'/\'\'}
 
   PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres \
-    --set=role_name="\$app_username" \
-    --set=role_password="\$app_password" <<'SQL'
-DO \$do\$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role_name') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password');
-  ELSE
-    EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'role_name', :'role_password');
-  END IF;
-END
-\$do\$;
-SQL
+    -c "DO \\\$do\\\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '\$app_username') THEN EXECUTE 'CREATE ROLE \"\$app_username\" LOGIN PASSWORD ''\$escaped_password'''; ELSE EXECUTE 'ALTER ROLE \"\$app_username\" WITH LOGIN PASSWORD ''\$escaped_password'''; END IF; END \\\$do\\\$;"
 
   EXISTS=\$(PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\$db_name'")
   if [ "\$EXISTS" != "1" ]; then
@@ -393,13 +390,7 @@ SQL
   fi
 
   PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d "\$db_name" \
-    --set=role_name="\$app_username" <<'SQL'
-GRANT ALL ON SCHEMA public TO :"role_name";
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO :"role_name";
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO :"role_name";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO :"role_name";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO :"role_name";
-SQL
+    -c "GRANT ALL ON SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"\$app_username\"; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \"\$app_username\"; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \"\$app_username\";"
 }
 
 ensure_role_and_database "\$KEYCLOAK_DB_NAME" "\$KEYCLOAK_DB_USERNAME" "\$KEYCLOAK_DB_PASSWORD"
