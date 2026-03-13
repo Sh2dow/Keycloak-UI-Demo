@@ -342,7 +342,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt update -y
-apt install -y docker.io docker-compose git postgresql-client awscli
+apt install -y docker.io docker-compose git postgresql-client awscli jq
 
 systemctl enable docker
 systemctl start docker
