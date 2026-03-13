@@ -10,6 +10,7 @@ const oidcSettings: UserManagerSettings = {
     response_type: "code",
     scope: "openid profile email",
     automaticSilentRenew: true,
+    disablePKCE: true,
 };
 
 export const keycloakUserManager = new UserManager(oidcSettings);
