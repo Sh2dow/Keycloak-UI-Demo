@@ -31,6 +31,7 @@ API_PUBLIC_HOSTNAME="${API_PUBLIC_HOSTNAME:-}"
 HOSTED_ZONE_ID="${HOSTED_ZONE_ID:-}"
 LOCK_DOWN_PUBLIC_PORTS="${LOCK_DOWN_PUBLIC_PORTS:-false}"
 APPLY_SSL_RUNTIME="${APPLY_SSL_RUNTIME:-false}"
+ENABLE_SELF_SIGNED_HTTPS="${ENABLE_SELF_SIGNED_HTTPS:-true}"
 
 if [ -n "$BASE_DOMAIN" ]; then
   KEYCLOAK_PUBLIC_HOSTNAME="${KEYCLOAK_PUBLIC_HOSTNAME:-auth.$BASE_DOMAIN}"
@@ -175,7 +176,7 @@ echo "Security group: $SG_ID"
 
 echo "Opening instance ports..."
 
-PORTS=(22 5173 5000 5001 8080 15672)
+PORTS=(22 80 443 5173 5000 5001 8080 15672)
 
 for PORT in "${PORTS[@]}"
 do
@@ -440,7 +441,7 @@ cd project
 
 rm -f .env
 
-PUBLIC_HOST="\$INSTANCE_PUBLIC_IP" bash ./scripts/run-compose-from-aws.sh up -d --build
+PUBLIC_HOST="\$INSTANCE_PUBLIC_IP" ENABLE_SELF_SIGNED_HTTPS="$ENABLE_SELF_SIGNED_HTTPS" bash ./scripts/run-compose-from-aws.sh up -d --build
 INNER
 EOF
 
@@ -519,10 +520,17 @@ echo "SSM Keycloak admin password parameter: $KEYCLOAK_ADMIN_PASSWORD_PARAMETER_
 echo ""
 
 echo "Services will be available soon (Docker may take ~2–4 minutes):"
-echo "Frontend:  http://$PUBLIC_IP:5173"
-echo "Backend:   http://$PUBLIC_IP:5000"
-echo "Auth API:  http://$PUBLIC_IP:5001"
-echo "Keycloak:  http://$PUBLIC_IP:8080"
+if [ "$ENABLE_SELF_SIGNED_HTTPS" = "true" ]; then
+  echo "Frontend:  https://$PUBLIC_IP"
+  echo "Backend:   https://$PUBLIC_IP/api"
+  echo "Auth API:  https://$PUBLIC_IP/auth-api"
+  echo "Keycloak:  https://$PUBLIC_IP/admin/master/console/"
+else
+  echo "Frontend:  http://$PUBLIC_IP:5173"
+  echo "Backend:   http://$PUBLIC_IP:5000"
+  echo "Auth API:  http://$PUBLIC_IP:5001"
+  echo "Keycloak:  http://$PUBLIC_IP:8080"
+fi
 echo "RabbitMQ:  http://$PUBLIC_IP:15672"
 
 echo ""

@@ -234,6 +234,7 @@ configure_public_urls() {
   . "$GENERATED_ENV_PATH"
   set -u
 
+  local self_signed_https="${ENABLE_SELF_SIGNED_HTTPS:-true}"
   local public_host="${PUBLIC_HOST:-$(get_public_ip)}"
   local public_scheme="${PUBLIC_SCHEME:-http}"
   local keycloak_hostname="${KEYCLOAK_PUBLIC_HOSTNAME:-}"
@@ -249,6 +250,19 @@ configure_public_urls() {
   local keycloak_hostname_strict="${KEYCLOAK_HOSTNAME_STRICT:-false}"
   local app_public_url="${APP_PUBLIC_URL:-${app_scheme}://${app_hostname}}"
   local api_public_url="${API_PUBLIC_URL:-${api_scheme}://${api_hostname}}"
+
+  if [ "$self_signed_https" = "true" ] && [ -z "${PUBLIC_SCHEME:-}" ]; then
+    public_scheme="https"
+    keycloak_scheme="${KEYCLOAK_PUBLIC_SCHEME:-https}"
+    app_scheme="${APP_PUBLIC_SCHEME:-https}"
+    api_scheme="${API_PUBLIC_SCHEME:-https}"
+    app_public_url="${APP_PUBLIC_URL:-${app_scheme}://${app_hostname}}"
+    api_public_url="${API_PUBLIC_URL:-${api_scheme}://${api_hostname}}"
+  fi
+
+  if [ "$self_signed_https" = "true" ] && [ -z "$keycloak_hostname" ]; then
+    keycloak_hostname="$public_host"
+  fi
 
   if [ -n "$keycloak_hostname" ] && [ -z "$keycloak_url" ]; then
     keycloak_url="${keycloak_scheme}://${keycloak_hostname}"
@@ -268,6 +282,7 @@ configure_public_urls() {
   append_or_replace_env "KEYCLOAK_REALM_URL" "$keycloak_realm_url"
   append_or_replace_env "KEYCLOAK_PROXY_HEADERS" "$keycloak_proxy_headers"
   append_or_replace_env "KEYCLOAK_HOSTNAME_STRICT" "$keycloak_hostname_strict"
+  append_or_replace_env "ENABLE_SELF_SIGNED_HTTPS" "$self_signed_https"
   append_or_replace_env "APP_PUBLIC_HOSTNAME" "$app_hostname"
   append_or_replace_env "APP_PUBLIC_SCHEME" "$app_scheme"
   append_or_replace_env "APP_PUBLIC_URL" "$app_public_url"
@@ -322,7 +337,7 @@ main() {
     append_or_replace_env "ENVIRONMENT" "$ENVIRONMENT"
     append_or_replace_env "RDS_ENDPOINT" "$endpoint"
     append_or_replace_env "RDS_PORT" "${RDS_PORT:-5432}"
-    append_or_replace_env "KEYCLOAK_START_COMMAND" "${KEYCLOAK_START_COMMAND:-start-dev}"
+    append_or_replace_env "KEYCLOAK_START_COMMAND" "${KEYCLOAK_START_COMMAND:-start}"
 
     build_database_urls
     configure_public_urls
@@ -356,6 +371,18 @@ main() {
     -u APP_DB_USERNAME \
     -u APP_DB_PASSWORD \
     -u PUBLIC_HOST \
+    -u PUBLIC_SCHEME \
+    -u ENABLE_SELF_SIGNED_HTTPS \
+    -u KEYCLOAK_PUBLIC_HOSTNAME \
+    -u KEYCLOAK_PUBLIC_SCHEME \
+    -u KEYCLOAK_PUBLIC_URL \
+    -u KEYCLOAK_REALM_URL \
+    -u APP_PUBLIC_HOSTNAME \
+    -u APP_PUBLIC_SCHEME \
+    -u APP_PUBLIC_URL \
+    -u API_PUBLIC_HOSTNAME \
+    -u API_PUBLIC_SCHEME \
+    -u API_PUBLIC_URL \
     "${COMPOSE_CMD[@]}" --env-file "$GENERATED_ENV_PATH" "$@"
 }
 
