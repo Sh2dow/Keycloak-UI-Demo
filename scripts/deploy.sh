@@ -9,6 +9,12 @@ INSTANCE_NAME="keycloak-demo"
 DB_ID="keycloak-demo"
 DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/master-username"
 RDS_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/master-password"
+KEYCLOAK_DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/keycloak-username"
+KEYCLOAK_DB_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/keycloak-password"
+AUTH_DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/auth-username"
+AUTH_DB_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/auth-password"
+APP_DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/app-username"
+APP_DB_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/app-password"
 KEYCLOAK_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-keycloak"
 AUTH_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-auth"
 APP_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-app"
@@ -58,6 +64,12 @@ get_required_parameter() {
 echo "Resolving database and Keycloak parameters from SSM Parameter Store..."
 
 DB_USERNAME=$(get_required_parameter "$DB_USERNAME_PARAMETER_NAME" "false")
+KEYCLOAK_DB_USERNAME=$(get_required_parameter "$KEYCLOAK_DB_USERNAME_PARAMETER_NAME" "false")
+KEYCLOAK_DB_PASSWORD=$(get_required_parameter "$KEYCLOAK_DB_PASSWORD_PARAMETER_NAME" "true")
+AUTH_DB_USERNAME=$(get_required_parameter "$AUTH_DB_USERNAME_PARAMETER_NAME" "false")
+AUTH_DB_PASSWORD=$(get_required_parameter "$AUTH_DB_PASSWORD_PARAMETER_NAME" "true")
+APP_DB_USERNAME=$(get_required_parameter "$APP_DB_USERNAME_PARAMETER_NAME" "false")
+APP_DB_PASSWORD=$(get_required_parameter "$APP_DB_PASSWORD_PARAMETER_NAME" "true")
 KEYCLOAK_DB_NAME=$(get_required_parameter "$KEYCLOAK_DB_PARAMETER_NAME" "false")
 AUTH_DB_NAME=$(get_required_parameter "$AUTH_DB_PARAMETER_NAME" "false")
 APP_DB_NAME=$(get_required_parameter "$APP_DB_PARAMETER_NAME" "false")
@@ -195,6 +207,12 @@ cat > ssm-parameter-policy.json <<JSON
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter/keycloak-demo/*",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${DB_USERNAME_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${RDS_PASSWORD_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_USERNAME_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_PASSWORD_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${AUTH_DB_USERNAME_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${AUTH_DB_PASSWORD_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_USERNAME_PARAMETER_NAME}",
+        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_PASSWORD_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${AUTH_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_PARAMETER_NAME}",
@@ -267,7 +285,7 @@ if [ "$RDS_EXISTS" != "$DB_ID" ]; then
     --allocated-storage 20 \
     --storage-type gp2 \
     --master-username "$DB_USERNAME" \
-    --manage-master-user-password \
+    --master-user-password "$(get_required_parameter "$RDS_PASSWORD_PARAMETER_NAME" "true")" \
     --no-publicly-accessible \
     --db-subnet-group-name "$DB_SUBNET_GROUP_NAME" \
     --vpc-security-group-ids "$SG_ID" \
@@ -338,16 +356,55 @@ TOKEN=\$(curl -fsX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-m
 INSTANCE_PUBLIC_IP=\$(curl -fs -H "X-aws-ec2-metadata-token: \$TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
 DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
 DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$RDS_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
+KEYCLOAK_DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$KEYCLOAK_DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
+KEYCLOAK_DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$KEYCLOAK_DB_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
+AUTH_DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$AUTH_DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
+AUTH_DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$AUTH_DB_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
+APP_DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_USERNAME_PARAMETER_NAME" --query "Parameter.Value" --output text)
+APP_DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
 KEYCLOAK_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$KEYCLOAK_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
 AUTH_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$AUTH_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
 APP_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
-for DB_NAME in "$KEYCLOAK_DB_NAME" "$AUTH_DB_NAME" "$APP_DB_NAME"
-do
-  EXISTS=\$(PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\$DB_NAME'")
+
+ensure_role_and_database() {
+  local db_name="\$1"
+  local app_username="\$2"
+  local app_password="\$3"
+
+  PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres \
+    --set=role_name="\$app_username" \
+    --set=role_password="\$app_password" <<'SQL'
+DO $do$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role_name') THEN
+    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'role_name', :'role_password');
+  ELSE
+    EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'role_name', :'role_password');
+  END IF;
+END
+$do$;
+SQL
+
+  EXISTS=\$(PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\$db_name'")
   if [ "\$EXISTS" != "1" ]; then
-    PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -c "CREATE DATABASE \\"\$DB_NAME\\""
+    PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -c "CREATE DATABASE \\"\$db_name\\" OWNER \\"\$app_username\\""
+  else
+    PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -c "ALTER DATABASE \\"\$db_name\\" OWNER TO \\"\$app_username\\""
   fi
-done
+
+  PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d "\$db_name" \
+    --set=role_name="\$app_username" <<'SQL'
+GRANT ALL ON SCHEMA public TO :"role_name";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO :"role_name";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO :"role_name";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO :"role_name";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO :"role_name";
+SQL
+}
+
+ensure_role_and_database "\$KEYCLOAK_DB_NAME" "\$KEYCLOAK_DB_USERNAME" "\$KEYCLOAK_DB_PASSWORD"
+ensure_role_and_database "\$AUTH_DB_NAME" "\$AUTH_DB_USERNAME" "\$AUTH_DB_PASSWORD"
+ensure_role_and_database "\$APP_DB_NAME" "\$APP_DB_USERNAME" "\$APP_DB_PASSWORD"
 
 sudo -u ubuntu bash <<INNER
 set -euo pipefail
@@ -401,6 +458,12 @@ echo "Server IP: $PUBLIC_IP"
 echo "RDS endpoint: $RDS_ENDPOINT"
 echo "SSM username parameter: $DB_USERNAME_PARAMETER_NAME"
 echo "SSM password parameter: $RDS_PASSWORD_PARAMETER_NAME"
+echo "SSM Keycloak DB username parameter: $KEYCLOAK_DB_USERNAME_PARAMETER_NAME"
+echo "SSM Keycloak DB password parameter: $KEYCLOAK_DB_PASSWORD_PARAMETER_NAME"
+echo "SSM auth DB username parameter: $AUTH_DB_USERNAME_PARAMETER_NAME"
+echo "SSM auth DB password parameter: $AUTH_DB_PASSWORD_PARAMETER_NAME"
+echo "SSM app DB username parameter: $APP_DB_USERNAME_PARAMETER_NAME"
+echo "SSM app DB password parameter: $APP_DB_PASSWORD_PARAMETER_NAME"
 echo "SSM Keycloak DB parameter: $KEYCLOAK_DB_PARAMETER_NAME"
 echo "SSM auth DB parameter: $AUTH_DB_PARAMETER_NAME"
 echo "SSM app DB parameter: $APP_DB_PARAMETER_NAME"

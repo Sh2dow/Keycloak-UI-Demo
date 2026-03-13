@@ -101,11 +101,29 @@ try_write_env_from_ssm() {
       | @tsv
     ' | while IFS=$'\t' read -r name value; do
       case "$name" in
+        "$path/rds/keycloak-username")
+          printf 'KEYCLOAK_DB_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$path/rds/keycloak-password")
+          printf 'KEYCLOAK_DB_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$path/rds/auth-username")
+          printf 'AUTH_DB_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$path/rds/auth-password")
+          printf 'AUTH_DB_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$path/rds/app-username")
+          printf 'APP_DB_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
+        "$path/rds/app-password")
+          printf 'APP_DB_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          ;;
         "$path/rds/master-username")
-          printf 'RDS_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_MASTER_USERNAME=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/master-password")
-          printf 'RDS_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
+          printf 'RDS_MASTER_PASSWORD=%s\n' "$value" >> "$GENERATED_ENV_PATH"
           ;;
         "$path/rds/db-name-keycloak")
           printf 'RDS_KEYCLOAK_DB=%s\n' "$value" >> "$GENERATED_ENV_PATH"
@@ -185,8 +203,12 @@ build_database_urls() {
   . "$GENERATED_ENV_PATH"
   set -u
 
-  : "${RDS_USERNAME:?Missing RDS_USERNAME}"
-  : "${RDS_PASSWORD:?Missing RDS_PASSWORD}"
+  : "${KEYCLOAK_DB_USERNAME:?Missing KEYCLOAK_DB_USERNAME}"
+  : "${KEYCLOAK_DB_PASSWORD:?Missing KEYCLOAK_DB_PASSWORD}"
+  : "${AUTH_DB_USERNAME:?Missing AUTH_DB_USERNAME}"
+  : "${AUTH_DB_PASSWORD:?Missing AUTH_DB_PASSWORD}"
+  : "${APP_DB_USERNAME:?Missing APP_DB_USERNAME}"
+  : "${APP_DB_PASSWORD:?Missing APP_DB_PASSWORD}"
   : "${RDS_KEYCLOAK_DB:?Missing RDS_KEYCLOAK_DB}"
   : "${RDS_AUTH_DB:?Missing RDS_AUTH_DB}"
   : "${RDS_APP_DB:?Missing RDS_APP_DB}"
@@ -194,13 +216,13 @@ build_database_urls() {
 
   local port="${RDS_PORT:-5432}"
 
-  append_or_replace_env "KEYCLOAK_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_KEYCLOAK_DB}?sslmode=require"
-  append_or_replace_env "AUTH_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_AUTH_DB}?sslmode=require"
-  append_or_replace_env "APP_DB_URL" "postgresql://${RDS_USERNAME}:${RDS_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_APP_DB}?sslmode=require"
+  append_or_replace_env "KEYCLOAK_DB_URL" "postgresql://${KEYCLOAK_DB_USERNAME}:${KEYCLOAK_DB_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_KEYCLOAK_DB}?sslmode=require"
+  append_or_replace_env "AUTH_DB_URL" "postgresql://${AUTH_DB_USERNAME}:${AUTH_DB_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_AUTH_DB}?sslmode=require"
+  append_or_replace_env "APP_DB_URL" "postgresql://${APP_DB_USERNAME}:${APP_DB_PASSWORD}@${RDS_ENDPOINT}:${port}/${RDS_APP_DB}?sslmode=require"
   append_or_replace_env "DB_HOST" "$RDS_ENDPOINT"
   append_or_replace_env "DB_PORT" "$port"
-  append_or_replace_env "DB_USERNAME" "$RDS_USERNAME"
-  append_or_replace_env "DB_PASSWORD" "$RDS_PASSWORD"
+  append_or_replace_env "RDS_USERNAME" "${RDS_MASTER_USERNAME:-}"
+  append_or_replace_env "RDS_PASSWORD" "${RDS_MASTER_PASSWORD:-}"
   append_or_replace_env "KEYCLOAK_DB_NAME" "$RDS_KEYCLOAK_DB"
   append_or_replace_env "AUTH_DB_NAME" "$RDS_AUTH_DB"
   append_or_replace_env "APP_DB_NAME" "$RDS_APP_DB"
