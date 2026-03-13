@@ -384,11 +384,11 @@ ensure_role_and_database() {
 
   EXISTS=\$(PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '\$db_name'")
   if [ "\$EXISTS" != "1" ]; then
-    PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -c "CREATE DATABASE \\"\$db_name\\" OWNER \\"\$app_username\\""
+    PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d postgres -c "CREATE DATABASE \\"\$db_name\\""
   fi
 
   PGPASSWORD="\$DB_PASSWORD" psql -h "$RDS_ENDPOINT" -U "\$DB_USERNAME" -d "\$db_name" \
-    -c "GRANT CONNECT, TEMP ON DATABASE \"\$db_name\" TO \"\$app_username\"; GRANT USAGE, CREATE ON SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"\$app_username\";"
+    -c "GRANT CONNECT, TEMP ON DATABASE \"\$db_name\" TO \"\$app_username\"; GRANT USAGE, CREATE ON SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"\$app_username\"; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"\$app_username\"; ALTER DEFAULT PRIVILEGES FOR USER \"\$DB_USERNAME\" IN SCHEMA public GRANT ALL ON TABLES TO \"\$app_username\"; ALTER DEFAULT PRIVILEGES FOR USER \"\$DB_USERNAME\" IN SCHEMA public GRANT ALL ON SEQUENCES TO \"\$app_username\";"
 }
 
 ensure_role_and_database "\$KEYCLOAK_DB_NAME" "\$KEYCLOAK_DB_USERNAME" "\$KEYCLOAK_DB_PASSWORD"
