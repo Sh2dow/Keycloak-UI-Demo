@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using System.Reflection;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 var featureAssemblies = new[]
@@ -124,6 +125,10 @@ builder.Services.AddAuthentication(options =>
         options.MetadataAddress = normalizedMetadataAddress;
         options.RequireHttpsMetadata = false;
         options.MapInboundClaims = false;
+        options.BackchannelHttpHandler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
