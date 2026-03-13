@@ -228,6 +228,39 @@ build_database_urls() {
   append_or_replace_env "APP_DB_NAME" "$RDS_APP_DB"
 }
 
+configure_public_urls() {
+  set +u
+  # shellcheck disable=SC1090
+  . "$GENERATED_ENV_PATH"
+  set -u
+
+  local public_host="${PUBLIC_HOST:-$(get_public_ip)}"
+  local public_scheme="${PUBLIC_SCHEME:-http}"
+  local keycloak_hostname="${KEYCLOAK_PUBLIC_HOSTNAME:-$public_host}"
+  local app_hostname="${APP_PUBLIC_HOSTNAME:-$public_host}"
+  local api_hostname="${API_PUBLIC_HOSTNAME:-$public_host}"
+  local keycloak_scheme="${KEYCLOAK_PUBLIC_SCHEME:-$public_scheme}"
+  local app_scheme="${APP_PUBLIC_SCHEME:-$public_scheme}"
+  local api_scheme="${API_PUBLIC_SCHEME:-$public_scheme}"
+  local keycloak_url="${KEYCLOAK_PUBLIC_URL:-${keycloak_scheme}://${keycloak_hostname}}"
+  local keycloak_realm_url="${KEYCLOAK_REALM_URL:-${keycloak_url}/realms/myrealm}"
+  local app_public_url="${APP_PUBLIC_URL:-${app_scheme}://${app_hostname}}"
+  local api_public_url="${API_PUBLIC_URL:-${api_scheme}://${api_hostname}}"
+
+  append_or_replace_env "PUBLIC_HOST" "$public_host"
+  append_or_replace_env "PUBLIC_SCHEME" "$public_scheme"
+  append_or_replace_env "KEYCLOAK_PUBLIC_HOSTNAME" "$keycloak_hostname"
+  append_or_replace_env "KEYCLOAK_PUBLIC_SCHEME" "$keycloak_scheme"
+  append_or_replace_env "KEYCLOAK_PUBLIC_URL" "$keycloak_url"
+  append_or_replace_env "KEYCLOAK_REALM_URL" "$keycloak_realm_url"
+  append_or_replace_env "APP_PUBLIC_HOSTNAME" "$app_hostname"
+  append_or_replace_env "APP_PUBLIC_SCHEME" "$app_scheme"
+  append_or_replace_env "APP_PUBLIC_URL" "$app_public_url"
+  append_or_replace_env "API_PUBLIC_HOSTNAME" "$api_hostname"
+  append_or_replace_env "API_PUBLIC_SCHEME" "$api_scheme"
+  append_or_replace_env "API_PUBLIC_URL" "$api_public_url"
+}
+
 load_local_fallback() {
   if [ ! -f "$LOCAL_FALLBACK_ENV_PATH" ]; then
     echo "AWS config unavailable and fallback file not found: $LOCAL_FALLBACK_ENV_PATH" >&2
@@ -274,9 +307,9 @@ main() {
     append_or_replace_env "ENVIRONMENT" "$ENVIRONMENT"
     append_or_replace_env "RDS_ENDPOINT" "$endpoint"
     append_or_replace_env "RDS_PORT" "${RDS_PORT:-5432}"
-    append_or_replace_env "PUBLIC_HOST" "${PUBLIC_HOST:-$(get_public_ip)}"
 
     build_database_urls
+    configure_public_urls
   else
     log "Could not load parameters from AWS SSM path: $PARAM_PATH"
     load_local_fallback

@@ -9,9 +9,11 @@ services:
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "true"
       KC_HTTP_ENABLED: "true"
-    command: start-dev
+    command: ${KEYCLOAK_START_COMMAND:-start}
     ports:
       - "8080:8080"
 
@@ -71,7 +73,7 @@ services:
       ConnectionStrings__Default: Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_APP_DB:-keycloak_demo_app};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require
       AuthService__BaseUrl: http://backend_auth_api:8080
       RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
-      Keycloak__Authority: http://${PUBLIC_HOST:-localhost}:8080/realms/myrealm
+      Keycloak__Authority: ${KEYCLOAK_REALM_URL}
       Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
     ports:
       - "5000:8080"
@@ -81,7 +83,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_KEYCLOAK_AUTHORITY: http://${PUBLIC_HOST:-localhost}:8080/realms/myrealm
+        VITE_KEYCLOAK_AUTHORITY: ${KEYCLOAK_REALM_URL}
     container_name: frontend
     depends_on:
       backend_api:
