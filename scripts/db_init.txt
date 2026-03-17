@@ -1,5 +1,11 @@
 CREATE USER keycloak WITH PASSWORD '123';
 
+CREATE DATABASE keycloak_demo_auth
+OWNER keycloak
+ENCODING 'UTF8';
+
+GRANT ALL PRIVILEGES ON DATABASE keycloak_demo_auth TO keycloak;
+
 CREATE DATABASE keycloak_demo
 OWNER keycloak
 ENCODING 'UTF8';
