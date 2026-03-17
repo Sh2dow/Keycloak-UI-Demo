@@ -64,11 +64,53 @@ export const keycloakAuthProvider: AuthBindings = {
     },
 };
 
-export async function getAccessToken(): Promise<string | null> {
-    const user = await keycloakUserManager.getUser();
+export async function getAccessToken(forceRefresh = false, asUserId?: string): Promise<string | null> {
+    let user = await keycloakUserManager.getUser();
+    
+    // If force refresh is needed and user has expired or is missing token, refresh
+    if (forceRefresh && user && (user.expired || !user.access_token)) {
+        try {
+            await keycloakUserManager.signinSilent();
+            user = await keycloakUserManager.getUser();
+        } catch (error) {
+            // Silent refresh failed, try full redirect
+            try {
+                await keycloakUserManager.signinRedirect();
+                user = await keycloakUserManager.getUser();
+            } catch {
+                // Redirect failed, return null
+                return null;
+            }
+        }
+    }
+    
+    // If impersonating, force a token refresh to ensure admin role is present
+    if (asUserId && user && !user.expired) {
+        try {
+            await keycloakUserManager.signinSilent();
+            user = await keycloakUserManager.getUser();
+        } catch {
+            // Silent refresh failed, continue with current token
+        }
+    }
+    
     if (!user || user.expired || !user.access_token) {
         return null;
     }
 
     return user.access_token;
+}
+
+// Refresh the user token (useful for impersonation)
+export async function refreshUserToken(): Promise<void> {
+    try {
+        await keycloakUserManager.signinSilent();
+    } catch {
+        // Silent refresh failed, try full redirect
+        try {
+            await keycloakUserManager.signinRedirect();
+        } catch {
+            // Redirect failed
+        }
+    }
 }

@@ -97,8 +97,8 @@ const normalizeList = (resource: string, payload: unknown): ListRecord[] => {
     return payload.map((item, index) => toListRecord(item, index));
 };
 
-const authHeaders = async (): Promise<AxiosRequestConfig["headers"]> => {
-    const token = await getAccessToken();
+const authHeaders = async (asUserId?: string): Promise<AxiosRequestConfig["headers"]> => {
+    const token = await getAccessToken(!!asUserId, asUserId);
     if (!token) return {};
 
     return {
@@ -162,7 +162,7 @@ const fetchList = async (apiUrl: string, resource: string, asUserId?: string): P
 
     const response = await axios.get(`${apiUrl}${endpoint}`, {
         params: asUserId ? { asUserId } : undefined,
-        headers: await authHeaders(),
+        headers: await authHeaders(asUserId),
     });
 
     return normalizeList(resource, response.data);
@@ -201,8 +201,21 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
             throw new Error(`GetOne is not implemented for resource '${resource}'`);
         }
 
+        // Force token refresh when impersonating to ensure admin role is present
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinSilent();
+            } catch {
+                try {
+                    await keycloakUserManager.signinRedirect();
+                } catch {
+                    // Silent and redirect refresh failed, continue with current token
+                }
+            }
+        }
+        
         const response = await axios.get(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, {
-            headers: await authHeaders(),
+            headers: await authHeaders(asUserId),
         });
 
         return { data: toListRecord(response.data, 0) as TData };
@@ -218,8 +231,21 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
             throw new Error(`Create is not implemented for resource '${resource}'`);
         }
 
+        // Force token refresh when impersonating to ensure admin role is present
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinSilent();
+            } catch {
+                try {
+                    await keycloakUserManager.signinRedirect();
+                } catch {
+                    // Silent and redirect refresh failed, continue with current token
+                }
+            }
+        }
+        
         const response = await axios.post(`${apiUrl}${withAsUserId(endpoint, asUserId)}`, variables, {
-            headers: await authHeaders(),
+            headers: await authHeaders(asUserId),
         });
 
         const data = toListRecord(response.data, 0) as TData;
@@ -236,8 +262,21 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
             throw new Error(`Update is not implemented for resource '${resource}'`);
         }
 
+        // Force token refresh when impersonating to ensure admin role is present
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinSilent();
+            } catch {
+                try {
+                    await keycloakUserManager.signinRedirect();
+                } catch {
+                    // Silent and redirect refresh failed, continue with current token
+                }
+            }
+        }
+        
         const response = await axios.put(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, variables, {
-            headers: await authHeaders(),
+            headers: await authHeaders(asUserId),
         });
 
         const data = toListRecord(response.data, 0) as TData;
@@ -254,8 +293,21 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
             throw new Error(`Delete is not implemented for resource '${resource}'`);
         }
 
+        // Force token refresh when impersonating to ensure admin role is present
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinSilent();
+            } catch {
+                try {
+                    await keycloakUserManager.signinRedirect();
+                } catch {
+                    // Silent and redirect refresh failed, continue with current token
+                }
+            }
+        }
+        
         await axios.delete(`${apiUrl}${withAsUserId(`${endpoint}/${id}`, asUserId)}`, {
-            headers: await authHeaders(),
+            headers: await authHeaders(asUserId),
         });
 
         return { data: { id } as TData };
@@ -264,8 +316,22 @@ export const keycloakDataProvider = (apiUrl: string): DataProvider => ({
         params: CustomParams<TQuery, TPayload>,
     ): Promise<CustomResponse<TData>> => {
         const asUserId = getAsUserIdFromMeta(params.meta);
+        
+        // Force token refresh when impersonating to ensure admin role is present
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinSilent();
+            } catch {
+                try {
+                    await keycloakUserManager.signinRedirect();
+                } catch {
+                    // Silent and redirect refresh failed, continue with current token
+                }
+            }
+        }
+        
         const headers = {
-            ...(await authHeaders()),
+            ...(await authHeaders(asUserId)),
             ...(params.headers ?? {}),
         };
 

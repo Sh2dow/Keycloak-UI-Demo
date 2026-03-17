@@ -121,7 +121,7 @@ export function TasksPage() {
         const content = commentDrafts[taskId]?.trim();
         if (!content) return;
 
-        const token = await getAccessToken();
+        const token = await getAccessToken(false, asUserId);
         await axios.post(
             `${API_URL}/api/tasks/${taskId}/comments`,
             { content },
