@@ -77,6 +77,8 @@ public class AppDbContext : DbContext
                 .HasValue<PhysicalOrder>("physical");
         });
 
+        modelBuilder.Entity<Order>().Ignore(x => x.Events);
+
         modelBuilder.Entity<DigitalOrder>(entity =>
         {
             entity.Property(x => x.DownloadUrl)
@@ -150,7 +152,7 @@ public class AppDbContext : DbContext
                 .IsUnique();
         });
 
-        modelBuilder.Entity<PaymentEventRecord>(entity =>
+    modelBuilder.Entity<PaymentEventRecord>(entity =>
         {
             entity.HasKey(x => x.Id);
 

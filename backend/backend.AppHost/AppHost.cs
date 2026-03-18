@@ -1,5 +1,3 @@
-using Aspire.Hosting;
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 var database = builder.AddConnectionString("Default");
@@ -19,6 +17,7 @@ builder.AddProject<Projects.backend_Auth_Api>("auth-api")
     .WithReference(rabbitmq)
     .WithEnvironment("ConnectionStrings__Auth", authDbConnectionString.Resource.ConnectionStringExpression)
     .WithEnvironment("RabbitMq__Uri", rabbitmq.Resource.ConnectionStringExpression)
+    .WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5001")
     .WaitFor(api)
     .WaitFor(authDbConnectionString)
     .WaitFor(rabbitmq);

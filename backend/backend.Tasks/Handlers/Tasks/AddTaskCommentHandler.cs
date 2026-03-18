@@ -1,4 +1,3 @@
-using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -10,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Tasks;
 
-public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, Result<TaskCommentDto>>
+public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, backend.Application.Results.Result<TaskCommentDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -23,12 +22,12 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         _userDirectory = userDirectory;
     }
 
-    public async Task<Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
+    public async Task<backend.Application.Results.Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var taskExists = await _db.Tasks
             .AnyAsync(x => x.Id == req.TaskId && x.UserId == userId, ct);
-        if (!taskExists) return Result<TaskCommentDto>.NotFound("Task not found.");
+        if (!taskExists) return backend.Application.Results.Result<TaskCommentDto>.NotFound("Task not found.");
 
         var comment = new TaskComment
         {
@@ -43,6 +42,6 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         var author = await _userDirectory.FindByIdAsync(userId, ct);
         var authorUsername = author?.Username ?? $"user-{userId.ToString("N")[..8]}";
 
-        return Result<TaskCommentDto>.Success(comment.ToDto(authorUsername));
+        return backend.Application.Results.Result<TaskCommentDto>.Success(comment.ToDto(authorUsername));
     }
 }

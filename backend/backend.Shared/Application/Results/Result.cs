@@ -42,4 +42,11 @@ public sealed class Result<T>
                 .Select(x => new ResultError("validation", x.ErrorMessage, x.PropertyName))
                 .ToList()
         );
+
+    public static Result<T> ValidationFromDomainErrors(IEnumerable<backend.Models.ResultError> errors)
+        => new(
+            false,
+            default,
+            errors.Select(e => new ResultError(e.Code, e.Message, e.Field)).ToList()
+        );
 }

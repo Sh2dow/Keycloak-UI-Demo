@@ -1,6 +1,5 @@
 using backend.Application.Results;
 using backend.Application.Users;
-using backend.Data;
 using backend.Requests.Users;
 using MediatR;
 

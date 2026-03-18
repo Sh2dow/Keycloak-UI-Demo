@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>keycloak-ui-demo-backend-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

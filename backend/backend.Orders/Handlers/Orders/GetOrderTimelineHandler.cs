@@ -1,6 +1,5 @@
 using backend.Application.Messaging;
 using backend.Application.Messaging.Messages;
-using backend.Application.Orders;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;

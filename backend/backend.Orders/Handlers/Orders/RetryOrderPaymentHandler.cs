@@ -1,7 +1,6 @@
 using backend.Application.Messaging;
 using backend.Application.Messaging.Messages;
 using backend.Application.Orders;
-using backend.Application.Results;
 using backend.Application.Users;
 using backend.Data;
 using backend.Dtos;
@@ -13,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Handlers.Orders;
 
-public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPaymentCommand, Result<OrderViewDto>>
+public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPaymentCommand, backend.Application.Results.Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -29,18 +28,18 @@ public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPayment
         _outbox = outbox;
     }
 
-    public async Task<Result<OrderViewDto>> Handle(RetryOrderPaymentCommand req, CancellationToken ct)
+    public async Task<backend.Application.Results.Result<OrderViewDto>> Handle(RetryOrderPaymentCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = await _db.Orders.FirstOrDefaultAsync(x => x.Id == req.OrderId && x.UserId == userId, ct);
         if (order == null)
         {
-            return Result<OrderViewDto>.NotFound();
+            return backend.Application.Results.Result<OrderViewDto>.NotFound();
         }
 
         if (!string.Equals(order.Status, OrderStatuses.PaymentFailed, StringComparison.OrdinalIgnoreCase))
         {
-            return Result<OrderViewDto>.Conflict("Only orders with failed payments can be retried.");
+            return backend.Application.Results.Result<OrderViewDto>.Conflict("Only orders with failed payments can be retried.");
         }
 
         var requestedAtUtc = DateTime.UtcNow;
@@ -93,6 +92,6 @@ public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPayment
 
         await _db.SaveChangesAsync(ct);
 
-        return Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
+        return backend.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
     }
 }

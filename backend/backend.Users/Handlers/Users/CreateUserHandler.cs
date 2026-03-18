@@ -1,6 +1,5 @@
 using backend.Application.Results;
 using backend.Application.Users;
-using backend.Data;
 using backend.Dtos;
 using backend.Mappers;
 using backend.Requests.Users;
