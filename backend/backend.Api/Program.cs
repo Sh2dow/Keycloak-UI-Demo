@@ -1,23 +1,26 @@
 using System.Security.Claims;
-using backend.Application.Behaviors;
-using backend.Application.Exceptions;
-using backend.Application.Messaging;
-using backend.Application.Security;
-using backend.Application.Users;
-using backend.Configuration;
-using backend.Data;
-using backend.Infrastructure.Messaging;
-using backend.Infrastructure.Orders;
-using backend.Infrastructure.Payments;
-using backend.Requests.Orders;
-using backend.Requests.Tasks;
-using backend.Requests.Users;
+using backend.Api.Application.Exceptions;
+using backend.Domain.Data;
+using backend.Infrastructure.Application.Behaviors;
+using backend.Infrastructure.Application.Security;
+using backend.Infrastructure.Application.Users;
+using backend.Infrastructure.Infrastructure.Messaging;
+using backend.Orders.Infrastructure.Orders;
+using backend.Orders.Requests.Orders;
+using backend.Payments.Infrastructure.Payments;
+using backend.ServiceDefaults;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Users;
+using backend.Shared.Configuration;
+using backend.Tasks.Requests.Tasks;
+using backend.Users.Requests.Users;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using RabbitMqOptions = backend.Shared.Configuration.RabbitMqOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 var featureAssemblies = new[]
@@ -50,7 +53,7 @@ builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
 // Configure strongly-typed options from configuration
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection(KeycloakOptions.SectionName));
-builder.Services.Configure<backend.Configuration.RabbitMqOptions>(builder.Configuration.GetSection(backend.Configuration.RabbitMqOptions.SectionName));
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.Configure<PaymentsOptions>(builder.Configuration.GetSection(PaymentsOptions.SectionName));
 builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
 builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>
@@ -87,7 +90,7 @@ builder.Services.AddSingleton<RabbitMqConnectionFactory>();
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRoleClaimsTransformation>();
 
 // Override RabbitMQ URI from environment variable if available
-builder.Services.PostConfigure<backend.Configuration.RabbitMqOptions>(options =>
+builder.Services.PostConfigure<RabbitMqOptions>(options =>
 {
     var aspireConnectionString = builder.Configuration.GetConnectionString("messaging");
     if (!string.IsNullOrWhiteSpace(aspireConnectionString))
@@ -187,7 +190,7 @@ var app = builder.Build();
 
 // Get configuration values from strongly-typed options
 var dbOptions = app.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>();
-var rabbitMqOptions = app.Configuration.GetSection(backend.Configuration.RabbitMqOptions.SectionName).Get<backend.Configuration.RabbitMqOptions>();
+var rabbitMqOptions = app.Configuration.GetSection(RabbitMqOptions.SectionName).Get<RabbitMqOptions>();
 
 string FormatRabbitMqTarget(string? uriString)
 {

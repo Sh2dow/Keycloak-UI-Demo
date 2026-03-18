@@ -1,18 +1,21 @@
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Application.Orders;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Models;
-using backend.Requests.Orders;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Orders.Application.Orders;
+using backend.Orders.Dtos;
+using backend.Orders.Mappers;
+using backend.Orders.Requests.Orders;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Application.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Orders;
+namespace backend.Orders.Handlers.Orders;
 
-public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPaymentCommand, backend.Application.Results.Result<OrderViewDto>>
+public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPaymentCommand, Shared.Application.Results.Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -28,18 +31,18 @@ public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPayment
         _outbox = outbox;
     }
 
-    public async Task<backend.Application.Results.Result<OrderViewDto>> Handle(RetryOrderPaymentCommand req, CancellationToken ct)
+    public async Task<Shared.Application.Results.Result<OrderViewDto>> Handle(RetryOrderPaymentCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var order = await _db.Orders.FirstOrDefaultAsync(x => x.Id == req.OrderId && x.UserId == userId, ct);
         if (order == null)
         {
-            return backend.Application.Results.Result<OrderViewDto>.NotFound();
+            return Shared.Application.Results.Result<OrderViewDto>.NotFound();
         }
 
         if (!string.Equals(order.Status, OrderStatuses.PaymentFailed, StringComparison.OrdinalIgnoreCase))
         {
-            return backend.Application.Results.Result<OrderViewDto>.Conflict("Only orders with failed payments can be retried.");
+            return Shared.Application.Results.Result<OrderViewDto>.Conflict("Only orders with failed payments can be retried.");
         }
 
         var requestedAtUtc = DateTime.UtcNow;
@@ -92,6 +95,6 @@ public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPayment
 
         await _db.SaveChangesAsync(ct);
 
-        return backend.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
+        return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
     }
 }

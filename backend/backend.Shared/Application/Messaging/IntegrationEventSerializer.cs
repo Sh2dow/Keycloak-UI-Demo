@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace backend.Application.Messaging;
+namespace backend.Shared.Application.Messaging;
 
 public static class IntegrationEventSerializer
 {

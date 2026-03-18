@@ -1,6 +1,6 @@
-using backend.Application.Abstractions;
-using backend.Dtos;
+using backend.Shared.Application.Abstractions;
+using backend.Users.Dtos;
 
-namespace backend.Requests.Users;
+namespace backend.Users.Requests.Users;
 
 public sealed record GetUsersQuery() : IQuery<IReadOnlyList<UserWithOrdersDto>>;

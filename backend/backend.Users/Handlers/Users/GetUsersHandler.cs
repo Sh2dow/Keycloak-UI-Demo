@@ -1,12 +1,13 @@
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Requests.Users;
-using backend.Application.Users;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Shared.Application.Users;
+using backend.Users.Dtos;
+using backend.Users.Mappers;
+using backend.Users.Requests.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Users;
+namespace backend.Users.Handlers.Users;
 
 public sealed class GetUsersHandler : IRequestHandler<GetUsersQuery, IReadOnlyList<UserWithOrdersDto>>
 {
@@ -28,7 +29,7 @@ public sealed class GetUsersHandler : IRequestHandler<GetUsersQuery, IReadOnlyLi
             .Where(x => userIds.Contains(x.UserId))
             .ToListAsync(ct);
         var ordersByUserId = orders.GroupBy(x => x.UserId)
-            .ToDictionary(x => x.Key, x => (IReadOnlyList<backend.Models.Order>)x.ToList());
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<Order>)x.ToList());
 
         return users
             .Select(user => user.ToDto(ordersByUserId.GetValueOrDefault(user.Id, [])))

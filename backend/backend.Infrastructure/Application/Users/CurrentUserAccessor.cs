@@ -1,6 +1,7 @@
 using System.Security.Claims;
+using backend.Shared.Application.Users;
 
-namespace backend.Application.Users;
+namespace backend.Infrastructure.Application.Users;
 
 public sealed class CurrentUserAccessor : ICurrentUserAccessor
 {

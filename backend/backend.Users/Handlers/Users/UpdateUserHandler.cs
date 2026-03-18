@@ -1,13 +1,13 @@
-using backend.Application.Results;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Requests.Users;
+using backend.Domain.Data;
+using backend.Shared.Application.Results;
+using backend.Shared.Application.Users;
+using backend.Users.Dtos;
+using backend.Users.Mappers;
+using backend.Users.Requests.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Users;
+namespace backend.Users.Handlers.Users;
 
 public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Result<UserWithOrdersDto>>
 {

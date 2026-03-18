@@ -1,15 +1,15 @@
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Models;
-using backend.Requests.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Shared.Application.Users;
+using backend.Tasks.Dtos;
+using backend.Tasks.Mappers;
+using backend.Tasks.Requests.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Tasks;
+namespace backend.Tasks.Handlers.Tasks;
 
-public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, backend.Application.Results.Result<TaskCommentDto>>
+public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, Shared.Application.Results.Result<TaskCommentDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -22,12 +22,12 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         _userDirectory = userDirectory;
     }
 
-    public async Task<backend.Application.Results.Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
+    public async Task<Shared.Application.Results.Result<TaskCommentDto>> Handle(AddTaskCommentCommand req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
         var taskExists = await _db.Tasks
             .AnyAsync(x => x.Id == req.TaskId && x.UserId == userId, ct);
-        if (!taskExists) return backend.Application.Results.Result<TaskCommentDto>.NotFound("Task not found.");
+        if (!taskExists) return Shared.Application.Results.Result<TaskCommentDto>.NotFound("Task not found.");
 
         var comment = new TaskComment
         {
@@ -42,6 +42,6 @@ public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentComman
         var author = await _userDirectory.FindByIdAsync(userId, ct);
         var authorUsername = author?.Username ?? $"user-{userId.ToString("N")[..8]}";
 
-        return backend.Application.Results.Result<TaskCommentDto>.Success(comment.ToDto(authorUsername));
+        return Shared.Application.Results.Result<TaskCommentDto>.Success(comment.ToDto(authorUsername));
     }
 }

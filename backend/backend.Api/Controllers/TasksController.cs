@@ -1,12 +1,12 @@
 using System.Security.Claims;
-using backend.Application.Results;
-using backend.Dtos;
-using backend.Requests.Tasks;
+using backend.Api.Application.Results;
+using backend.Tasks.Dtos;
+using backend.Tasks.Requests.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Controllers;
+namespace backend.Api.Controllers;
 
 [ApiController]
 [Route("api/tasks")]

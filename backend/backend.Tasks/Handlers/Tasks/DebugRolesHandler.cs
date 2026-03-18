@@ -1,7 +1,7 @@
-using backend.Requests.Tasks;
+using backend.Tasks.Requests.Tasks;
 using MediatR;
 
-namespace backend.Handlers.Tasks;
+namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class DebugRolesHandler : IRequestHandler<DebugRolesQuery, IReadOnlyList<string>>
 {

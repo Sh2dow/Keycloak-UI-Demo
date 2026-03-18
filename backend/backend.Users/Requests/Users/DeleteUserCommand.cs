@@ -1,6 +1,6 @@
-using backend.Application.Abstractions;
-using backend.Application.Results;
+using backend.Shared.Application.Abstractions;
+using backend.Shared.Application.Results;
 
-namespace backend.Requests.Users;
+namespace backend.Users.Requests.Users;
 
 public sealed record DeleteUserCommand(Guid Id) : ICommand<Result<bool>>;

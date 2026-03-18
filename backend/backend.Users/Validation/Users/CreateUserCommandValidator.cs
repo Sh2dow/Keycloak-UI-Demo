@@ -1,7 +1,7 @@
-using backend.Requests.Users;
+using backend.Users.Requests.Users;
 using FluentValidation;
 
-namespace backend.Validation.Users;
+namespace backend.Users.Validation.Users;
 
 public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 {

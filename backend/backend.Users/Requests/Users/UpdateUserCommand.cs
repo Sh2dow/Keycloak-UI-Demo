@@ -1,8 +1,8 @@
-using backend.Application.Abstractions;
-using backend.Application.Results;
-using backend.Dtos;
+using backend.Shared.Application.Abstractions;
+using backend.Shared.Application.Results;
+using backend.Users.Dtos;
 
-namespace backend.Requests.Users;
+namespace backend.Users.Requests.Users;
 
 public sealed record UpdateUserCommand(
     Guid Id,

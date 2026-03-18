@@ -1,7 +1,7 @@
-using backend.Requests.Tasks;
+using backend.Tasks.Requests.Tasks;
 using FluentValidation;
 
-namespace backend.Validation.Tasks;
+namespace backend.Tasks.Validation.Tasks;
 
 public sealed class AddTaskCommentCommandValidator : AbstractValidator<AddTaskCommentCommand>
 {

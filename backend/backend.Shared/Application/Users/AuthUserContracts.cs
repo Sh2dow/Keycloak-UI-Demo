@@ -1,4 +1,4 @@
-namespace backend.Application.Users;
+namespace backend.Shared.Application.Users;
 
 public sealed record AuthUserDto(
     Guid Id,

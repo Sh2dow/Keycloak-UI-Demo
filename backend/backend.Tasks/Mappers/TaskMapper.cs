@@ -1,9 +1,9 @@
-using backend.Dtos;
-using backend.Models;
-using backend.Requests.Tasks;
+using backend.Domain.Models;
+using backend.Tasks.Dtos;
+using backend.Tasks.Requests.Tasks;
 using Riok.Mapperly.Abstractions;
 
-namespace backend.Mappers;
+namespace backend.Tasks.Mappers;
 
 [Mapper]
 public static partial class TaskMapper

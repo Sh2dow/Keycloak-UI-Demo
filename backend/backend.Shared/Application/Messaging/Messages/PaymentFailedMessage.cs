@@ -1,4 +1,4 @@
-namespace backend.Application.Messaging.Messages;
+namespace backend.Shared.Application.Messaging.Messages;
 
 public sealed record PaymentFailedMessage(
     Guid PaymentId,

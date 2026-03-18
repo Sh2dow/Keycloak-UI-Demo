@@ -1,4 +1,4 @@
-namespace backend.Infrastructure.Payments;
+namespace backend.Payments.Infrastructure.Payments;
 
 public sealed class PaymentOptions
 {

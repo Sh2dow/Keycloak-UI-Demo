@@ -1,8 +1,9 @@
-using backend.Data;
-using backend.Models;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Shared.Application.Users;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Application.Users;
+namespace backend.Infrastructure.Application.Users;
 
 public sealed class EfUserDirectory : IUserDirectory
 {

@@ -1,4 +1,7 @@
-namespace backend.Dtos;
+using System;
+using System.Collections.Generic;
+
+namespace backend.Orders.Dtos;
 
 public sealed record OrderPaymentEventDto(
     int AttemptNumber,

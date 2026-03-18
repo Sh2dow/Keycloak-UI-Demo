@@ -1,4 +1,4 @@
-namespace backend.Dtos;
+namespace backend.Tasks.Dtos;
 
 public sealed record CreateTaskRequest(
     string Title,

@@ -1,4 +1,4 @@
-namespace backend.Dtos;
+namespace backend.Orders.Dtos;
 
 public sealed record CreateDigitalOrderRequest(decimal TotalAmount, string DownloadUrl);
 

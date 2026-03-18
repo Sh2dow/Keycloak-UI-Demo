@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace backend.Application.Behaviors;
+namespace backend.Infrastructure.Application.Behaviors;
 
 public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull

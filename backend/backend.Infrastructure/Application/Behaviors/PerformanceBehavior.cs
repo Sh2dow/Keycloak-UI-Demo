@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using MediatR;
 
-namespace backend.Application.Behaviors;
+namespace backend.Infrastructure.Application.Behaviors;
 
 public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull

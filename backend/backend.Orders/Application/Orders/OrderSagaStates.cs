@@ -1,4 +1,4 @@
-namespace backend.Application.Orders;
+namespace backend.Orders.Application.Orders;
 
 public static class OrderSagaStates
 {

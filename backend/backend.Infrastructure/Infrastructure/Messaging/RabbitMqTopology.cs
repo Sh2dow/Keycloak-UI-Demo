@@ -1,6 +1,6 @@
 using RabbitMQ.Client;
 
-namespace backend.Infrastructure.Messaging;
+namespace backend.Infrastructure.Infrastructure.Messaging;
 
 public static class RabbitMqTopology
 {

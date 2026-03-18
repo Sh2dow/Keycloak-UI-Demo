@@ -1,5 +1,5 @@
-using backend.Application.Users;
-using backend.Models;
+using backend.Domain.Models;
+using backend.Shared.Application.Users;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Auth.Api.Controllers;

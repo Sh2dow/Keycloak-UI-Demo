@@ -1,6 +1,7 @@
+using backend.Shared.Application.Results;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Application.Results;
+namespace backend.Api.Application.Results;
 
 public static class ResultActionResultExtensions
 {

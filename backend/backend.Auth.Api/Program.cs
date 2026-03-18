@@ -1,6 +1,8 @@
-using backend.Application.Users;
-using backend.Configuration;
-using backend.Data;
+using backend.Domain.Data;
+using backend.Infrastructure.Application.Users;
+using backend.ServiceDefaults;
+using backend.Shared.Application.Users;
+using backend.Shared.Configuration;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);

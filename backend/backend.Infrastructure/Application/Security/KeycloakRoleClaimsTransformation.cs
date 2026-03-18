@@ -2,7 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 
-namespace backend.Application.Security;
+namespace backend.Infrastructure.Application.Security;
 
 public sealed class KeycloakRoleClaimsTransformation : IClaimsTransformation
 {

@@ -1,6 +1,6 @@
-using backend.Application.Results;
+using backend.Shared.Application.Results;
 
-namespace backend.Application.Exceptions;
+namespace backend.Shared.Application.Exceptions;
 
 public class ValidationException : Exception
 {
@@ -21,7 +21,7 @@ public class ValidationException : Exception
 
     public int StatusCode { get; }
     public string Title { get; }
-    public List<ResultError> Errors { get; }
+    public List<ResultError> Errors { get; } = [];
 
     private static string BuildDetails(IEnumerable<ResultError> errors)
     {

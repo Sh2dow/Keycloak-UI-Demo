@@ -1,13 +1,19 @@
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Requests.Orders;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Orders.Dtos;
+using backend.Orders.Requests.Orders;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Application.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Orders;
+namespace backend.Orders.Handlers.Orders;
 
 public sealed class GetOrderTimelineHandler : IRequestHandler<GetOrderTimelineQuery, IReadOnlyList<OrderTimelineItemDto>?>
 {
@@ -110,7 +116,7 @@ public sealed class GetOrderTimelineHandler : IRequestHandler<GetOrderTimelineQu
         return timeline;
     }
 
-    private static DateTime? GetLatestEventTime(IReadOnlyCollection<backend.Models.PaymentEventRecord> paymentEvents, string eventType)
+    private static DateTime? GetLatestEventTime(IReadOnlyCollection<PaymentEventRecord> paymentEvents, string eventType)
     {
         return paymentEvents
             .Where(x => string.Equals(x.EventType, eventType, StringComparison.Ordinal))
@@ -119,7 +125,7 @@ public sealed class GetOrderTimelineHandler : IRequestHandler<GetOrderTimelineQu
             .FirstOrDefault();
     }
 
-    private static backend.Models.PaymentEventRecord? GetLatestEvent(IReadOnlyCollection<backend.Models.PaymentEventRecord> paymentEvents, string eventType)
+    private static PaymentEventRecord? GetLatestEvent(IReadOnlyCollection<PaymentEventRecord> paymentEvents, string eventType)
     {
         return paymentEvents
             .Where(x => string.Equals(x.EventType, eventType, StringComparison.Ordinal))

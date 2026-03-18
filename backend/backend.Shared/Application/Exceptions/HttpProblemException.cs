@@ -1,4 +1,4 @@
-namespace backend.Application.Exceptions;
+namespace backend.Shared.Application.Exceptions;
 
 public sealed class HttpProblemException : Exception
 {

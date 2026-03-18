@@ -1,8 +1,8 @@
-using backend.Application.Abstractions;
-using backend.Data;
+using backend.Domain.Data;
+using backend.Shared.Application.Abstractions;
 using MediatR;
 
-namespace backend.Application.Behaviors;
+namespace backend.Infrastructure.Application.Behaviors;
 
 public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : ICommand<TResponse>

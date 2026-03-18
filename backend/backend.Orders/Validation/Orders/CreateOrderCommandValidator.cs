@@ -1,7 +1,8 @@
-using backend.Requests.Orders;
+using System;
+using backend.Orders.Requests.Orders;
 using FluentValidation;
 
-namespace backend.Validation.Orders;
+namespace backend.Orders.Validation.Orders;
 
 public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
 {

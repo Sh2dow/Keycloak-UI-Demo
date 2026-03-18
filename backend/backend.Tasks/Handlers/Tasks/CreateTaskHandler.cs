@@ -1,12 +1,12 @@
-using backend.Application.Results;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Requests.Tasks;
+using backend.Domain.Data;
+using backend.Shared.Application.Results;
+using backend.Shared.Application.Users;
+using backend.Tasks.Dtos;
+using backend.Tasks.Mappers;
+using backend.Tasks.Requests.Tasks;
 using MediatR;
 
-namespace backend.Handlers.Tasks;
+namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, Result<TaskItemDto>>
 {

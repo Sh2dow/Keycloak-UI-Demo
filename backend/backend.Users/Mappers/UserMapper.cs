@@ -1,9 +1,9 @@
-using backend.Dtos;
-using backend.Models;
-using backend.Requests.Users;
+using backend.Domain.Models;
+using backend.Users.Dtos;
+using backend.Users.Requests.Users;
 using Riok.Mapperly.Abstractions;
 
-namespace backend.Mappers;
+namespace backend.Users.Mappers;
 
 [Mapper]
 public static partial class UserMapper

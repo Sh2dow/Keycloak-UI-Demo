@@ -1,5 +1,5 @@
-using backend.Application.Abstractions;
+using backend.Shared.Application.Abstractions;
 
-namespace backend.Requests.Tasks;
+namespace backend.Tasks.Requests.Tasks;
 
 public sealed record DebugRolesQuery(IReadOnlyList<string> Roles) : IQuery<IReadOnlyList<string>>;

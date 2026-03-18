@@ -1,4 +1,4 @@
-namespace backend.Application.Exceptions;
+namespace backend.Shared.Application.Exceptions;
 
 public class IntegrationException : Exception
 {

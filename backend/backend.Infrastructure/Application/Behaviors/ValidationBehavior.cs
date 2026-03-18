@@ -1,10 +1,10 @@
 using System.Reflection;
-using backend.Application.Abstractions;
-using backend.Application.Results;
+using backend.Shared.Application.Abstractions;
+using backend.Shared.Application.Results;
 using FluentValidation;
 using MediatR;
 
-namespace backend.Application.Behaviors;
+namespace backend.Infrastructure.Application.Behaviors;
 
 public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull

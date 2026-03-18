@@ -1,4 +1,4 @@
-namespace backend.Application.Messaging;
+namespace backend.Shared.Application.Messaging;
 
 public interface IIntegrationEventOutbox
 {

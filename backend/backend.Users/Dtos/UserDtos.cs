@@ -1,4 +1,4 @@
-namespace backend.Dtos;
+namespace backend.Users.Dtos;
 
 public sealed record CreateUserRequest(string Subject, string Username, string? Email);
 

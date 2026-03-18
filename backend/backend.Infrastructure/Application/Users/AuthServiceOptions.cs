@@ -1,4 +1,4 @@
-namespace backend.Application.Users;
+namespace backend.Infrastructure.Application.Users;
 
 public sealed class AuthServiceOptions
 {

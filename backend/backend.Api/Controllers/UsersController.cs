@@ -1,12 +1,12 @@
-using backend.Application.Results;
-using backend.Application.Users;
-using backend.Dtos;
-using backend.Requests.Users;
+using backend.Api.Application.Results;
+using backend.Shared.Application.Users;
+using backend.Users.Dtos;
+using backend.Users.Requests.Users;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Controllers;
+namespace backend.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]

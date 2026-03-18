@@ -1,4 +1,4 @@
-namespace backend.Configuration;
+namespace backend.Shared.Configuration;
 
 /// <summary>
 /// Configuration options for database connections.

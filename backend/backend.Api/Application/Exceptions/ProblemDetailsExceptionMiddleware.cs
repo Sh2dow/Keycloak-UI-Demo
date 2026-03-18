@@ -1,7 +1,8 @@
 using System.Text.Json;
+using backend.Shared.Application.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Application.Exceptions;
+namespace backend.Api.Application.Exceptions;
 
 public sealed class ProblemDetailsExceptionMiddleware
 {

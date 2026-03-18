@@ -1,6 +1,6 @@
-using backend.Application.Abstractions;
-using backend.Application.Results;
+using backend.Shared.Application.Abstractions;
+using backend.Shared.Application.Results;
 
-namespace backend.Requests.Tasks;
+namespace backend.Tasks.Requests.Tasks;
 
 public sealed record DeleteTaskCommand(Guid Id) : ICommand<Result<bool>>;

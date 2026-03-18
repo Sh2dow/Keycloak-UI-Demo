@@ -1,9 +1,9 @@
-using backend.Dtos;
-using backend.Models;
-using backend.Requests.Orders;
+using backend.Domain.Models;
+using backend.Orders.Dtos;
+using backend.Orders.Requests.Orders;
 using Riok.Mapperly.Abstractions;
 
-namespace backend.Mappers;
+namespace backend.Orders.Mappers;
 
 [Mapper]
 public static partial class OrderMapper

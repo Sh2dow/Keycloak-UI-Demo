@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace backend.Infrastructure.Messaging;
+namespace backend.Infrastructure.Infrastructure.Messaging;
 
 public sealed class RabbitMqConnectionFactory
 {

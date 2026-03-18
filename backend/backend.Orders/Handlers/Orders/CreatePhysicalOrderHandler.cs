@@ -1,17 +1,21 @@
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Application.Orders;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Requests.Orders;
-using backend.Validation.Orders;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Orders.Application.Orders;
+using backend.Orders.Dtos;
+using backend.Orders.Mappers;
+using backend.Orders.Requests.Orders;
+using backend.Orders.Validation.Orders;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Application.Users;
 using MediatR;
 
-namespace backend.Handlers.Orders;
+namespace backend.Orders.Handlers.Orders;
 
-public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, backend.Application.Results.Result<OrderViewDto>>
+public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, Shared.Application.Results.Result<OrderViewDto>>
 {
     private readonly AppDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
@@ -30,13 +34,13 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
         _validator = validator;
     }
 
-    public async Task<backend.Application.Results.Result<OrderViewDto>> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
+    public async Task<Shared.Application.Results.Result<OrderViewDto>> Handle(CreatePhysicalOrderCommand req, CancellationToken ct)
     {
         // Command validation
         var commandResult = _validator.ValidateCommand(req);
         if (!commandResult.IsSuccess)
         {
-            return backend.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(commandResult.Errors);
+            return Shared.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(commandResult.Errors);
         }
 
         var userId = await _effectiveUser.GetUserIdAsync(ct);
@@ -50,7 +54,7 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
         var domainResult = order.ValidatePhysicalOrder();
         if (!domainResult.IsSuccess)
         {
-            return backend.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(domainResult.Errors);
+            return Shared.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(domainResult.Errors);
         }
 
         _db.Orders.Add(order);
@@ -68,6 +72,6 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
 
         await _db.SaveChangesAsync(ct);
 
-        return backend.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto((backend.Models.Order)order));
+        return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto((Order)order));
     }
 }

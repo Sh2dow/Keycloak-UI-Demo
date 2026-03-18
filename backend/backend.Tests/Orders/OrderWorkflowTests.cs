@@ -1,10 +1,10 @@
-using backend.Application.Messaging;
-using backend.Application.Orders;
-using backend.Application.Users;
-using backend.Data;
-using backend.Handlers.Orders;
-using backend.Models;
-using backend.Requests.Orders;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Orders.Application.Orders;
+using backend.Orders.Handlers.Orders;
+using backend.Orders.Requests.Orders;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Tests.Orders;

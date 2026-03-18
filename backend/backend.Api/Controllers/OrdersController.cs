@@ -1,11 +1,11 @@
-using backend.Application.Results;
-using backend.Dtos;
-using backend.Requests.Orders;
+using backend.Api.Application.Results;
+using backend.Orders.Dtos;
+using backend.Orders.Requests.Orders;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Controllers;
+namespace backend.Api.Controllers;
 
 [ApiController]
 [Route("api/orders")]

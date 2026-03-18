@@ -1,4 +1,4 @@
-namespace backend.Models;
+namespace backend.Domain.Models;
 
 public class Order
 {
@@ -60,11 +60,11 @@ public class Order
         Order order;
         if (orderType == "digital")
         {
-            order = new DigitalOrder { UserId = userId, TotalAmount = totalAmount, DownloadUrl = downloadUrl };
+            order = new DigitalOrder { UserId = userId, TotalAmount = totalAmount, DownloadUrl = downloadUrl! };
         }
         else if (orderType == "physical")
         {
-            order = new PhysicalOrder { UserId = userId, TotalAmount = totalAmount, ShippingAddress = shippingAddress };
+            order = new PhysicalOrder { UserId = userId, TotalAmount = totalAmount, ShippingAddress = shippingAddress! };
         }
         else
         {

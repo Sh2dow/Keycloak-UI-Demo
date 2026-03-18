@@ -1,6 +1,6 @@
 using FluentValidation.Results;
 
-namespace backend.Application.Results;
+namespace backend.Shared.Application.Results;
 
 public sealed record ResultError(string Code, string Message, string? Field = null);
 
@@ -43,7 +43,7 @@ public sealed class Result<T>
                 .ToList()
         );
 
-    public static Result<T> ValidationFromDomainErrors(IEnumerable<backend.Models.ResultError> errors)
+    public static Result<T> ValidationFromDomainErrors(IEnumerable<Domain.Models.ResultError> errors)
         => new(
             false,
             default,

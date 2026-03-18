@@ -1,16 +1,21 @@
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Application.Orders;
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Models;
-using backend.Requests.Orders;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Orders.Application.Orders;
+using backend.Orders.Dtos;
+using backend.Orders.Mappers;
+using backend.Orders.Requests.Orders;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Application.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Orders;
+namespace backend.Orders.Handlers.Orders;
 
 public sealed class GetOrderWorkflowHandler : IRequestHandler<GetOrderWorkflowQuery, OrderWorkflowDto?>
 {

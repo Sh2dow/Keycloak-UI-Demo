@@ -1,8 +1,9 @@
-using backend.Models;
+using backend.Domain.Models;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using ResultError = backend.Shared.Application.Results.ResultError;
 
-namespace backend.Application.Results;
+namespace backend.Api.Application.Results;
 
 public static class ValidationProblemDetailsExtensions
 {
@@ -35,7 +36,7 @@ public static class ValidationProblemDetailsExtensions
         };
     }
 
-    public static ValidationProblemDetails ToValidationProblemDetails(this IEnumerable<backend.Models.ResultError> errors)
+    public static ValidationProblemDetails ToValidationProblemDetails(this IEnumerable<Domain.Models.ResultError> errors)
     {
         var grouped = errors
             .Where(x => x.Code == "validation")
@@ -50,7 +51,7 @@ public static class ValidationProblemDetailsExtensions
         };
     }
 
-    public static ValidationProblemDetails ToValidationProblemDetails<T>(this Result<T> result)
+    public static ValidationProblemDetails ToValidationProblemDetails<T>(this Shared.Application.Results.Result<T> result)
     {
         if (!result.IsSuccess || result.Errors.Count == 0)
             return new ValidationProblemDetails()
@@ -89,7 +90,7 @@ public static class ValidationProblemDetailsExtensions
         return result.Errors.ToValidationProblemDetails();
     }
 
-    public static ValidationResult ToFluentValidationResult<T>(this Result<T> result)
+    public static ValidationResult ToFluentValidationResult<T>(this Shared.Application.Results.Result<T> result)
     {
         var failures = result.Errors
             .Where(x => x.Code == "validation")

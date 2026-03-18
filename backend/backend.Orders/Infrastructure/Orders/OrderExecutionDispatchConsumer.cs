@@ -1,15 +1,21 @@
+using System;
 using System.Text;
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Data;
-using backend.Infrastructure.Messaging;
-using backend.Models;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Infrastructure.Infrastructure.Messaging;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace backend.Infrastructure.Orders;
+namespace backend.Orders.Infrastructure.Orders;
 
 public sealed class OrderExecutionDispatchConsumer : BackgroundService
 {

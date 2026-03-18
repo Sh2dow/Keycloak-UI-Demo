@@ -1,6 +1,6 @@
-using backend.Models;
+using backend.Domain.Models;
 
-namespace backend.Application.Users;
+namespace backend.Shared.Application.Users;
 
 public interface IEffectiveUserAccessor
 {

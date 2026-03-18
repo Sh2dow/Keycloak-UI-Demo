@@ -1,8 +1,8 @@
-using backend.Application.Messaging;
-using backend.Data;
-using backend.Models;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Shared.Application.Messaging;
 
-namespace backend.Infrastructure.Messaging;
+namespace backend.Infrastructure.Infrastructure.Messaging;
 
 public sealed class DbIntegrationEventOutbox : IIntegrationEventOutbox
 {

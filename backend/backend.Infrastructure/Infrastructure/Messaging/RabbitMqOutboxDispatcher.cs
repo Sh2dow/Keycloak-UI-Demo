@@ -1,10 +1,10 @@
 using System.Text;
-using backend.Data;
+using backend.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace backend.Infrastructure.Messaging;
+namespace backend.Infrastructure.Infrastructure.Messaging;
 
 public sealed class RabbitMqOutboxDispatcher : BackgroundService
 {

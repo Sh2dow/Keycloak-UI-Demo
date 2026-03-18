@@ -1,4 +1,4 @@
-namespace backend.Infrastructure.Orders;
+namespace backend.Orders.Infrastructure.Orders;
 
 public sealed class OrderExecutionOptions
 {

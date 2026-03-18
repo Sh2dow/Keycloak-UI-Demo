@@ -1,9 +1,9 @@
-using backend.Application.Results;
-using backend.Application.Users;
-using backend.Requests.Users;
+using backend.Shared.Application.Results;
+using backend.Shared.Application.Users;
+using backend.Users.Requests.Users;
 using MediatR;
 
-namespace backend.Handlers.Users;
+namespace backend.Users.Handlers.Users;
 
 public sealed class DeleteUserHandler : IRequestHandler<DeleteUserCommand, Result<bool>>
 {

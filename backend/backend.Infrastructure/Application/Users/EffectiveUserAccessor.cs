@@ -1,7 +1,8 @@
-using backend.Application.Exceptions;
-using backend.Models;
+using backend.Domain.Models;
+using backend.Shared.Application.Exceptions;
+using backend.Shared.Application.Users;
 
-namespace backend.Application.Users;
+namespace backend.Infrastructure.Application.Users;
 
 public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
 {

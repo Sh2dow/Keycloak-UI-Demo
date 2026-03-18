@@ -1,15 +1,15 @@
 using System.Text;
-using backend.Application.Messaging;
-using backend.Application.Messaging.Messages;
-using backend.Data;
-using backend.Infrastructure.Messaging;
-using backend.Models;
+using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Infrastructure.Infrastructure.Messaging;
+using backend.Shared.Application.Messaging;
+using backend.Shared.Application.Messaging.Messages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace backend.Infrastructure.Payments;
+namespace backend.Payments.Infrastructure.Payments;
 
 public sealed class PaymentStubConsumer : BackgroundService
 {

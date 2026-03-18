@@ -1,12 +1,14 @@
-using backend.Application.Users;
-using backend.Data;
-using backend.Dtos;
-using backend.Mappers;
-using backend.Requests.Orders;
+using System.Threading;
+using System.Threading.Tasks;
+using backend.Domain.Data;
+using backend.Orders.Dtos;
+using backend.Orders.Mappers;
+using backend.Orders.Requests.Orders;
+using backend.Shared.Application.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Handlers.Orders;
+namespace backend.Orders.Handlers.Orders;
 
 public sealed class GetOrderByIdHandler : IRequestHandler<GetOrderByIdQuery, OrderViewDto?>
 {

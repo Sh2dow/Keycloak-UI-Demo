@@ -1,8 +1,8 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var database = builder.AddConnectionString("Default");
-var authDbConnectionString = builder.AddConnectionString("Auth");
-var rabbitmq = builder.AddConnectionString("messaging");
+var database = builder.AddConnectionString("Default", "Host=localhost;Port=5432;Database=keycloak_demo;Username=keycloak;Password=123");
+var authDbConnectionString = builder.AddConnectionString("Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
+var rabbitmq = builder.AddConnectionString("messaging", "amqp://guest:guest@localhost:5672");
 
 var api = builder.AddProject<Projects.backend_Api>("api")
     .WithReference(database)
