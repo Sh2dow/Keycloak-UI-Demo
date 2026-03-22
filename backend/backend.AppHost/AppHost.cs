@@ -12,7 +12,7 @@ var api = builder.AddProject<Projects.backend_Api>("api")
     .WaitFor(database)
     .WaitFor(rabbitmq);
 
-builder.AddProject<Projects.backend_Auth_Api>("auth-api")
+var authApi = builder.AddProject<Projects.backend_Auth_Api>("auth-api")
     .WithReference(authDbConnectionString)
     .WithReference(rabbitmq)
     .WithEnvironment("ConnectionStrings__Auth", authDbConnectionString.Resource.ConnectionStringExpression)

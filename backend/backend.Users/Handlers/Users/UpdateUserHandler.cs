@@ -1,4 +1,5 @@
 using backend.Domain.Data;
+using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Results;
 using backend.Shared.Application.Users;
 using backend.Users.Dtos;
@@ -13,27 +14,42 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Resul
 {
     private readonly IUserDirectory _userDirectory;
     private readonly OrdersDbContext _ordersDb;
+    private readonly IIntegrationEventOutbox _outbox;
 
-    public UpdateUserHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb)
+    public UpdateUserHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb, IIntegrationEventOutbox outbox)
     {
         _userDirectory = userDirectory;
         _ordersDb = ordersDb;
+        _outbox = outbox;
     }
 
-    public async Task<Result<UserWithOrdersDto>> Handle(UpdateUserCommand req, CancellationToken ct)
+    public async Task<backend.Shared.Application.Results.Result<UserWithOrdersDto>> Handle(UpdateUserCommand req, CancellationToken ct)
     {
         var user = await _userDirectory.FindByIdAsync(req.Id, ct);
-        if (user == null) return Result<UserWithOrdersDto>.NotFound("User not found.");
+        if (user == null) return backend.Shared.Application.Results.Result<UserWithOrdersDto>.NotFound("User not found.");
+
+        var originalUsername = user.Username;
+        var originalEmail = user.Email;
 
         user.Username = req.Username.Trim();
         user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
         user = await _userDirectory.UpdateAsync(user, ct);
+
+        // Publish user updated event if username or email changed
+        if (originalUsername != user.Username || originalEmail != user.Email)
+        {
+            await _outbox.EnqueueAsync(
+                "user.updated",
+                new UserUpdatedMessage(user.Id, user.Username, user.Email, DateTime.UtcNow),
+                user.Id.ToString(),
+                ct);
+        }
 
         var orders = await _ordersDb.Orders
             .AsNoTracking()
             .Where(x => x.UserId == req.Id)
             .ToListAsync(ct);
 
-        return Result<UserWithOrdersDto>.Success(user.ToDto(orders));
+        return backend.Shared.Application.Results.Result<UserWithOrdersDto>.Success(user.ToDto(orders));
     }
 }

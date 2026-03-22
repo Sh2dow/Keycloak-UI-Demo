@@ -24,3 +24,22 @@ public sealed record UpdateAuthUserRequest(
     string Username,
     string? Email
 );
+
+public sealed record UserCreatedMessage(
+    Guid UserId,
+    string Username,
+    string? Email,
+    DateTime OccurredAtUtc
+);
+
+public sealed record UserUpdatedMessage(
+    Guid UserId,
+    string Username,
+    string? Email,
+    DateTime OccurredAtUtc
+);
+
+public sealed record UserDeletedMessage(
+    Guid UserId,
+    DateTime OccurredAtUtc
+);
