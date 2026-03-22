@@ -15,11 +15,11 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, Shared.Application.Results.Result<OrderViewDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly UpdateOrderCommandValidator _validator;
 
-    public UpdateOrderHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, UpdateOrderCommandValidator validator)
+    public UpdateOrderHandler(OrdersDbContext db, IEffectiveUserAccessor effectiveUser, UpdateOrderCommandValidator validator)
     {
         _db = db;
         _effectiveUser = effectiveUser;

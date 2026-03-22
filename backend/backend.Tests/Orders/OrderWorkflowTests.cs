@@ -23,9 +23,11 @@ public sealed class OrderWorkflowTests
 
         var orderId = Guid.NewGuid();
         var firstPaymentId = Guid.NewGuid();
-        await using var db = CreateDbContext();
+        
+        await using var ordersDb = CreateOrdersDbContext();
+        await using var paymentsDb = CreatePaymentsDbContext();
 
-        db.Orders.Add(new DigitalOrder
+        ordersDb.Orders.Add(new DigitalOrder
         {
             Id = orderId,
             UserId = user.Id,
@@ -33,7 +35,7 @@ public sealed class OrderWorkflowTests
             TotalAmount = 25m,
             Status = OrderStatuses.PaymentFailed
         });
-        db.OrderSagaStates.Add(new OrderSagaState
+        ordersDb.OrderSagaStates.Add(new OrderSagaState
         {
             OrderId = orderId,
             PaymentId = firstPaymentId,
@@ -44,7 +46,7 @@ public sealed class OrderWorkflowTests
             ExecutionFailedAtUtc = DateTime.UtcNow.AddSeconds(-30),
             ExecutionFailureReason = "old execution failure"
         });
-        db.PaymentEventRecords.Add(new PaymentEventRecord
+        paymentsDb.PaymentEventRecords.Add(new PaymentEventRecord
         {
             PaymentId = firstPaymentId,
             OrderId = orderId,
@@ -54,7 +56,7 @@ public sealed class OrderWorkflowTests
             Data = "{}",
             OccurredAtUtc = DateTime.UtcNow.AddMinutes(-2)
         });
-        db.PaymentEventRecords.Add(new PaymentEventRecord
+        paymentsDb.PaymentEventRecords.Add(new PaymentEventRecord
         {
             PaymentId = firstPaymentId,
             OrderId = orderId,
@@ -64,10 +66,11 @@ public sealed class OrderWorkflowTests
             Data = "{}",
             OccurredAtUtc = DateTime.UtcNow.AddMinutes(-1)
         });
-        await db.SaveChangesAsync();
+        await ordersDb.SaveChangesAsync();
+        await paymentsDb.SaveChangesAsync();
 
         var outbox = new RecordingOutbox();
-        var handler = new RetryOrderPaymentHandler(db, new FakeEffectiveUserAccessor(user), outbox);
+        var handler = new RetryOrderPaymentHandler(ordersDb, new FakeEffectiveUserAccessor(user), outbox);
 
         var result = await handler.Handle(new RetryOrderPaymentCommand(orderId), CancellationToken.None);
 
@@ -75,10 +78,10 @@ public sealed class OrderWorkflowTests
         Assert.NotNull(result.Value);
         Assert.Equal(OrderStatuses.PaymentPending, result.Value!.Status);
 
-        var persistedOrder = await db.Orders.SingleAsync(x => x.Id == orderId);
+        var persistedOrder = await ordersDb.Orders.SingleAsync(x => x.Id == orderId);
         Assert.Equal(OrderStatuses.PaymentPending, persistedOrder.Status);
 
-        var saga = await db.OrderSagaStates.SingleAsync(x => x.OrderId == orderId);
+        var saga = await ordersDb.OrderSagaStates.SingleAsync(x => x.OrderId == orderId);
         Assert.Equal(OrderSagaStates.PaymentPending, saga.State);
         Assert.Null(saga.PaymentId);
         Assert.Null(saga.LastPaymentCompletedAtUtc);
@@ -108,8 +111,10 @@ public sealed class OrderWorkflowTests
         var attemptTwoPaymentId = Guid.NewGuid();
         var now = DateTime.UtcNow;
 
-        await using var db = CreateDbContext();
-        db.Orders.Add(new PhysicalOrder
+        await using var ordersDb = CreateOrdersDbContext();
+        await using var paymentsDb = CreatePaymentsDbContext();
+
+        ordersDb.Orders.Add(new PhysicalOrder
         {
             Id = orderId,
             UserId = user.Id,
@@ -119,7 +124,7 @@ public sealed class OrderWorkflowTests
             Status = OrderStatuses.ExecutionCompleted,
             CreatedAtUtc = now.AddMinutes(-10)
         });
-        db.OrderSagaStates.Add(new OrderSagaState
+        ordersDb.OrderSagaStates.Add(new OrderSagaState
         {
             OrderId = orderId,
             PaymentId = attemptTwoPaymentId,
@@ -131,7 +136,7 @@ public sealed class OrderWorkflowTests
             ExecutionStartedAtUtc = now.AddMinutes(-1),
             ExecutionCompletedAtUtc = now
         });
-        db.PaymentEventRecords.AddRange(
+        paymentsDb.PaymentEventRecords.AddRange(
             new PaymentEventRecord
             {
                 PaymentId = attemptOnePaymentId,
@@ -172,9 +177,10 @@ public sealed class OrderWorkflowTests
                 Data = "{}",
                 OccurredAtUtc = now.AddMinutes(-3)
             });
-        await db.SaveChangesAsync();
+        await ordersDb.SaveChangesAsync();
+        await paymentsDb.SaveChangesAsync();
 
-        var handler = new GetOrderWorkflowHandler(db, new FakeEffectiveUserAccessor(user));
+        var handler = new GetOrderWorkflowHandler(ordersDb, paymentsDb, new FakeEffectiveUserAccessor(user));
 
         var workflow = await handler.Handle(new GetOrderWorkflowQuery(orderId), CancellationToken.None);
 
@@ -188,13 +194,22 @@ public sealed class OrderWorkflowTests
         Assert.Contains(workflow.Timeline, x => x.Key == "execution-completed" && x.State == "Completed");
     }
 
-    private static AppDbContext CreateDbContext()
+    private static OrdersDbContext CreateOrdersDbContext()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        var options = new DbContextOptionsBuilder<OrdersDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options;
 
-        return new AppDbContext(options);
+        return new OrdersDbContext(options);
+    }
+
+    private static PaymentsDbContext CreatePaymentsDbContext()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        return new PaymentsDbContext(options);
     }
 
     private sealed class FakeEffectiveUserAccessor : IEffectiveUserAccessor

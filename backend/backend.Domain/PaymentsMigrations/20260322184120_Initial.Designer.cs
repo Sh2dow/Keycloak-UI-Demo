@@ -12,7 +12,7 @@ using backend.Domain.Data;
 namespace backend.Domain.PaymentsMigrations
 {
     [DbContext(typeof(PaymentsDbContext))]
-    [Migration("20260322183155_Initial")]
+    [Migration("20260322184120_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

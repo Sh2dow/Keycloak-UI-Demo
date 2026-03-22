@@ -30,10 +30,12 @@
 ## What Needs to Be Done Next
 
 ### Phase 0: Decouple Internally (Remaining)
-1. **Apply migrations for new contexts** - Currently stuck because tables already exist from old `AppDbContext`
-   - Solution: Manually mark migrations as applied using SQL
-2. **Remove `AppDbContext` registrations** - No longer needed in `backend.Api`
-3. **Update domain services** - Replace `AppDbContext` references with specific contexts
+1. **Mark migrations as applied** - Tables already exist from old `AppDbContext`
+   - Solution: Run PowerShell script or SQL to insert into `__EFMigrationsHistory` table
+2. **Apply migrations** - Run `dotnet ef database update` for each context
+   - Since tables exist, EF will skip migrations if history is marked correctly
+3. **Remove `AppDbContext` registrations** - No longer needed in `backend.Api`
+4. **Update domain services** - Replace `AppDbContext` references with specific contexts
 
 ### Phase 1: Auth Service (Ready)
 - Auth API is already standalone

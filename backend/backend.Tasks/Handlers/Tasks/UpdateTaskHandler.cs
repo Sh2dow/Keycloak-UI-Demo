@@ -11,10 +11,10 @@ namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Result<TaskItemDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public UpdateTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public UpdateTaskHandler(TasksDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
         _effectiveUser = effectiveUser;

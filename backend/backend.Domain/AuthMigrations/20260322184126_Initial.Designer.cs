@@ -12,8 +12,8 @@ using backend.Domain.Data;
 namespace backend.Domain.AuthMigrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20260322180639_InitialAuth")]
-    partial class InitialAuth
+    [Migration("20260322184126_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

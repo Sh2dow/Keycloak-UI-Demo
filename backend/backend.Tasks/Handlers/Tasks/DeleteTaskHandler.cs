@@ -9,10 +9,10 @@ namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, Result<bool>>
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public DeleteTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public DeleteTaskHandler(TasksDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
         _effectiveUser = effectiveUser;

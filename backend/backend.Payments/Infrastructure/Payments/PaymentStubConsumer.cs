@@ -79,10 +79,11 @@ public sealed class PaymentStubConsumer : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ordersDb = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+            var paymentsDb = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
             var outbox = scope.ServiceProvider.GetRequiredService<IIntegrationEventOutbox>();
 
-            var alreadyProcessed = await db.ConsumedMessages
+            var alreadyProcessed = await ordersDb.ConsumedMessages
                 .AnyAsync(x => x.Consumer == ConsumerName && x.MessageId == messageId, ct);
 
             if (alreadyProcessed)
@@ -94,7 +95,7 @@ public sealed class PaymentStubConsumer : BackgroundService
             var payload = Encoding.UTF8.GetString(args.Body.ToArray());
             var orderPaymentRequested = IntegrationEventSerializer.Deserialize<OrderPaymentRequestedMessage>(payload);
 
-            var currentAttemptNumber = await db.PaymentEventRecords
+            var currentAttemptNumber = await paymentsDb.PaymentEventRecords
                 .Where(x => x.OrderId == orderPaymentRequested.OrderId)
                 .MaxAsync(x => (int?)x.AttemptNumber, ct) ?? 0;
 
@@ -109,7 +110,7 @@ public sealed class PaymentStubConsumer : BackgroundService
                 orderPaymentRequested.TotalAmount,
                 DateTime.UtcNow);
 
-            db.PaymentEventRecords.Add(new PaymentEventRecord
+            paymentsDb.PaymentEventRecords.Add(new PaymentEventRecord
             {
                 PaymentId = paymentId,
                 OrderId = orderPaymentRequested.OrderId,
@@ -139,7 +140,7 @@ public sealed class PaymentStubConsumer : BackgroundService
                     orderPaymentRequested.TotalAmount,
                     DateTime.UtcNow);
 
-                db.PaymentEventRecords.Add(new PaymentEventRecord
+                paymentsDb.PaymentEventRecords.Add(new PaymentEventRecord
                 {
                     PaymentId = paymentId,
                     OrderId = orderPaymentRequested.OrderId,
@@ -164,7 +165,7 @@ public sealed class PaymentStubConsumer : BackgroundService
                     "Stub payment rejection.",
                     DateTime.UtcNow);
 
-                db.PaymentEventRecords.Add(new PaymentEventRecord
+                paymentsDb.PaymentEventRecords.Add(new PaymentEventRecord
                 {
                     PaymentId = paymentId,
                     OrderId = orderPaymentRequested.OrderId,
@@ -182,13 +183,13 @@ public sealed class PaymentStubConsumer : BackgroundService
                     ct);
             }
 
-            db.ConsumedMessages.Add(new ConsumedMessage
+            ordersDb.ConsumedMessages.Add(new ConsumedMessage
             {
                 Consumer = ConsumerName,
                 MessageId = messageId
             });
 
-            await db.SaveChangesAsync(ct);
+            await paymentsDb.SaveChangesAsync(ct);
             await channel.BasicAckAsync(args.DeliveryTag, false, ct);
         }
         catch (Exception ex)

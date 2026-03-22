@@ -10,11 +10,11 @@ namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class GetTasksHandler : IRequestHandler<GetTasksQuery, IReadOnlyList<TaskItemDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly IUserDirectory _userDirectory;
 
-    public GetTasksHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
+    public GetTasksHandler(TasksDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
     {
         _db = db;
         _effectiveUser = effectiveUser;

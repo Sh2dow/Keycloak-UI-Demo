@@ -7,9 +7,9 @@ namespace backend.Infrastructure.Application.Behaviors;
 public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : ICommand<TResponse>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
 
-    public TransactionBehavior(AppDbContext db)
+    public TransactionBehavior(OrdersDbContext db)
     {
         _db = db;
     }

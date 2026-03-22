@@ -11,11 +11,11 @@ namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class AddTaskCommentHandler : IRequestHandler<AddTaskCommentCommand, Shared.Application.Results.Result<TaskCommentDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly IUserDirectory _userDirectory;
 
-    public AddTaskCommentHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
+    public AddTaskCommentHandler(TasksDbContext db, IEffectiveUserAccessor effectiveUser, IUserDirectory userDirectory)
     {
         _db = db;
         _effectiveUser = effectiveUser;

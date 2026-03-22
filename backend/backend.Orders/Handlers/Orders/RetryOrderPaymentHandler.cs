@@ -17,12 +17,12 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class RetryOrderPaymentHandler : IRequestHandler<RetryOrderPaymentCommand, Shared.Application.Results.Result<OrderViewDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly IIntegrationEventOutbox _outbox;
 
     public RetryOrderPaymentHandler(
-        AppDbContext db,
+        OrdersDbContext db,
         IEffectiveUserAccessor effectiveUser,
         IIntegrationEventOutbox outbox)
     {

@@ -6,9 +6,9 @@ namespace backend.Infrastructure.Infrastructure.Messaging;
 
 public sealed class DbIntegrationEventOutbox : IIntegrationEventOutbox
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
 
-    public DbIntegrationEventOutbox(AppDbContext db)
+    public DbIntegrationEventOutbox(OrdersDbContext db)
     {
         _db = db;
     }

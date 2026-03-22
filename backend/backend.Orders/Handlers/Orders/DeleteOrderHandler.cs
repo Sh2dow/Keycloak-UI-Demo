@@ -11,10 +11,10 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, Result<bool>>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public DeleteOrderHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public DeleteOrderHandler(OrdersDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
         _effectiveUser = effectiveUser;

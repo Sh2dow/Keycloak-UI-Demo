@@ -12,19 +12,19 @@ namespace backend.Users.Handlers.Users;
 public sealed class GetUsersHandler : IRequestHandler<GetUsersQuery, IReadOnlyList<UserWithOrdersDto>>
 {
     private readonly IUserDirectory _userDirectory;
-    private readonly AppDbContext _appDb;
+    private readonly OrdersDbContext _ordersDb;
 
-    public GetUsersHandler(IUserDirectory userDirectory, AppDbContext appDb)
+    public GetUsersHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb)
     {
         _userDirectory = userDirectory;
-        _appDb = appDb;
+        _ordersDb = ordersDb;
     }
 
     public async Task<IReadOnlyList<UserWithOrdersDto>> Handle(GetUsersQuery req, CancellationToken ct)
     {
         var users = await _userDirectory.ListAsync(ct);
         var userIds = users.Select(x => x.Id).ToArray();
-        var orders = await _appDb.Orders
+        var orders = await _ordersDb.Orders
             .AsNoTracking()
             .Where(x => userIds.Contains(x.UserId))
             .ToListAsync(ct);

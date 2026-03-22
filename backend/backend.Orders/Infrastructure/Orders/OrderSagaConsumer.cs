@@ -84,7 +84,7 @@ public sealed class OrderSagaConsumer : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
             var outbox = scope.ServiceProvider.GetRequiredService<IIntegrationEventOutbox>();
 
             var alreadyProcessed = await db.ConsumedMessages
@@ -164,7 +164,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandlePaymentRequestedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         OrderPaymentRequestedMessage requested,
         CancellationToken ct)
     {
@@ -197,7 +197,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandlePaymentAuthorizedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         IIntegrationEventOutbox outbox,
         PaymentAuthorizedMessage authorized,
         CancellationToken ct)
@@ -235,7 +235,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandlePaymentFailedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         PaymentFailedMessage failed,
         CancellationToken ct)
     {
@@ -266,7 +266,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandleExecutionDispatchedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         OrderExecutionDispatchedMessage dispatched,
         CancellationToken ct)
     {
@@ -296,7 +296,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandleExecutionStartedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         OrderExecutionStartedMessage started,
         CancellationToken ct)
     {
@@ -325,7 +325,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandleExecutionCompletedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         OrderExecutionCompletedMessage completed,
         CancellationToken ct)
     {
@@ -353,7 +353,7 @@ public sealed class OrderSagaConsumer : BackgroundService
     }
 
     private static async Task HandleExecutionFailedAsync(
-        AppDbContext db,
+        OrdersDbContext db,
         OrderExecutionFailedMessage failed,
         CancellationToken ct)
     {
@@ -381,7 +381,7 @@ public sealed class OrderSagaConsumer : BackgroundService
         order.Status = OrderStatuses.ExecutionFailed;
     }
 
-    private static OrderSagaState CreateMissingSaga(AppDbContext db, Guid orderId)
+    private static OrderSagaState CreateMissingSaga(OrdersDbContext db, Guid orderId)
     {
         var saga = new OrderSagaState
         {

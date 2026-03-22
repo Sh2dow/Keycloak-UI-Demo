@@ -12,10 +12,10 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class GetOrderByIdHandler : IRequestHandler<GetOrderByIdQuery, OrderViewDto?>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public GetOrderByIdHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public GetOrderByIdHandler(OrdersDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
         _effectiveUser = effectiveUser;

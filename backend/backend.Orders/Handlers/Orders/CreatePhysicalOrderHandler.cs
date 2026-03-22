@@ -17,13 +17,13 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalOrderCommand, Shared.Application.Results.Result<OrderViewDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly IIntegrationEventOutbox _outbox;
     private readonly CreatePhysicalOrderCommandValidator _validator;
 
     public CreatePhysicalOrderHandler(
-        AppDbContext db,
+        OrdersDbContext db,
         IEffectiveUserAccessor effectiveUser,
         IIntegrationEventOutbox outbox,
         CreatePhysicalOrderCommandValidator validator)

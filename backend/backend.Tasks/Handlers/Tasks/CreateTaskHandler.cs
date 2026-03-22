@@ -10,10 +10,10 @@ namespace backend.Tasks.Handlers.Tasks;
 
 public sealed class CreateTaskHandler : IRequestHandler<CreateTaskCommand, Result<TaskItemDto>>
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public CreateTaskHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public CreateTaskHandler(TasksDbContext db, IEffectiveUserAccessor effectiveUser)
     {
         _db = db;
         _effectiveUser = effectiveUser;

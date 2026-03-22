@@ -60,7 +60,7 @@ public sealed class RabbitMqOutboxDispatcher : BackgroundService
     private async Task<bool> PublishBatchAsync(IChannel channel, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
 
         var messages = await db.OutboxMessages
             .Where(x => x.PublishedAtUtc == null)

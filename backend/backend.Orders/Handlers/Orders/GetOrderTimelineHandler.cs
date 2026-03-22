@@ -17,19 +17,21 @@ namespace backend.Orders.Handlers.Orders;
 
 public sealed class GetOrderTimelineHandler : IRequestHandler<GetOrderTimelineQuery, IReadOnlyList<OrderTimelineItemDto>?>
 {
-    private readonly AppDbContext _db;
+    private readonly OrdersDbContext _ordersDb;
+    private readonly PaymentsDbContext _paymentsDb;
     private readonly IEffectiveUserAccessor _effectiveUser;
 
-    public GetOrderTimelineHandler(AppDbContext db, IEffectiveUserAccessor effectiveUser)
+    public GetOrderTimelineHandler(OrdersDbContext ordersDb, PaymentsDbContext paymentsDb, IEffectiveUserAccessor effectiveUser)
     {
-        _db = db;
+        _ordersDb = ordersDb;
+        _paymentsDb = paymentsDb;
         _effectiveUser = effectiveUser;
     }
 
     public async Task<IReadOnlyList<OrderTimelineItemDto>?> Handle(GetOrderTimelineQuery req, CancellationToken ct)
     {
         var userId = await _effectiveUser.GetUserIdAsync(ct);
-        var order = await _db.Orders
+        var order = await _ordersDb.Orders
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == req.OrderId && x.UserId == userId, ct);
 
@@ -38,11 +40,11 @@ public sealed class GetOrderTimelineHandler : IRequestHandler<GetOrderTimelineQu
             return null;
         }
 
-        var saga = await _db.OrderSagaStates
+        var saga = await _ordersDb.OrderSagaStates
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.OrderId == req.OrderId, ct);
 
-        var paymentEvents = await _db.PaymentEventRecords
+        var paymentEvents = await _paymentsDb.PaymentEventRecords
             .AsNoTracking()
             .Where(x => x.OrderId == req.OrderId)
             .OrderBy(x => x.SequenceNumber)

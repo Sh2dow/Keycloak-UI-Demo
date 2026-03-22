@@ -11,12 +11,12 @@ namespace backend.Users.Handlers.Users;
 public sealed class GetUserByIdHandler : IRequestHandler<GetUserByIdQuery, UserWithOrdersDto?>
 {
     private readonly IUserDirectory _userDirectory;
-    private readonly AppDbContext _appDb;
+    private readonly OrdersDbContext _ordersDb;
 
-    public GetUserByIdHandler(IUserDirectory userDirectory, AppDbContext appDb)
+    public GetUserByIdHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb)
     {
         _userDirectory = userDirectory;
-        _appDb = appDb;
+        _ordersDb = ordersDb;
     }
 
     public async Task<UserWithOrdersDto?> Handle(GetUserByIdQuery req, CancellationToken ct)
@@ -27,7 +27,7 @@ public sealed class GetUserByIdHandler : IRequestHandler<GetUserByIdQuery, UserW
             return null;
         }
 
-        var orders = await _appDb.Orders
+        var orders = await _ordersDb.Orders
             .AsNoTracking()
             .Where(x => x.UserId == req.Id)
             .ToListAsync(ct);

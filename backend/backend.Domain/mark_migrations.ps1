@@ -1,45 +1,34 @@
 # PowerShell script to mark migrations as applied for new contexts
-# Run this script manually to avoid EF trying to apply migrations
+# Run this before running EF migrations to skip applying migrations (tables already exist)
 
 $connectionString = "Host=localhost;Port=5432;Database=keycloak_demo;Username=keycloak;Password=123"
 
 Write-Host "Marking migrations as applied..."
 
-# TasksDbContext
-Write-Host "TasksDbContext..."
-Invoke-PgQuery $connectionString "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183024_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
+# Use psql if available, otherwise use dotnet ef with a custom script
+$psqlPath = "C:\Program Files\PostgreSQL\17\bin\psql.exe"
 
-# OrdersDbContext
-Write-Host "OrdersDbContext..."
-Invoke-PgQuery $connectionString "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183024_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
-
-# PaymentsDbContext
-Write-Host "PaymentsDbContext..."
-Invoke-PgQuery $connectionString "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183024_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
-
-Write-Host "Done!"
-
-function Invoke-PgQuery {
-    param(
-        [string]$ConnectionString,
-        [string]$Query
-    )
+if (Test-Path $psqlPath) {
+    $env:PGPASSWORD = "123"
     
-    # Write SQL to a temp file
-    $sqlFile = [System.IO.Path]::GetTempFileName() + ".sql"
-    Set-Content -Path $sqlFile -Value $Query -NoNewline
+    # TasksDbContext
+    Write-Host "TasksDbContext..."
+    & $psqlPath -h localhost -U keycloak -d keycloak_demo -c "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183300_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
     
-    # Try to use psql
-    $psqlPath = "C:\Program Files\PostgreSQL\17\bin\psql.exe"
-    if (Test-Path $psqlPath) {
-        $env:PGPASSWORD = "123"
-        & $psqlPath -h localhost -U keycloak -d keycloak_demo -f $sqlFile 2>&1 | Write-Host
-        Remove-Item $sqlFile -Force
-        return
-    }
+    # OrdersDbContext
+    Write-Host "OrdersDbContext..."
+    & $psqlPath -h localhost -U keycloak -d keycloak_demo -c "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183301_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
     
-    # Fallback to dotnet ef database update with a custom script
-    Write-Host "psql not found. Using dotnet ef..."
-    $env:ConnectionStrings__Default = $connectionString
-    dotnet ef database update --context TasksDbContext
+    # PaymentsDbContext
+    Write-Host "PaymentsDbContext..."
+    & $psqlPath -h localhost -U keycloak -d keycloak_demo -c "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183302_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
+    
+    # AuthDbContext
+    Write-Host "AuthDbContext..."
+    & $psqlPath -h localhost -U keycloak -d keycloak_demo_auth -c "INSERT INTO ""__EFMigrationsHistory"" (migration_id, product_version) VALUES ('20260322183303_Initial', '10.0.1') ON CONFLICT (migration_id) DO NOTHING;"
+    
+    Write-Host "Done!"
+} else {
+    Write-Host "psql not found. Please run the SQL script manually."
+    Write-Host "SQL script location: D:\Repos\Interview\Keycloak-UI-Demo\backend\backend.Domain\mark_all_migrations.sql"
 }

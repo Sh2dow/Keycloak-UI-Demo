@@ -12,12 +12,12 @@ namespace backend.Users.Handlers.Users;
 public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Result<UserWithOrdersDto>>
 {
     private readonly IUserDirectory _userDirectory;
-    private readonly AppDbContext _appDb;
+    private readonly OrdersDbContext _ordersDb;
 
-    public UpdateUserHandler(IUserDirectory userDirectory, AppDbContext appDb)
+    public UpdateUserHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb)
     {
         _userDirectory = userDirectory;
-        _appDb = appDb;
+        _ordersDb = ordersDb;
     }
 
     public async Task<Result<UserWithOrdersDto>> Handle(UpdateUserCommand req, CancellationToken ct)
@@ -29,7 +29,7 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Resul
         user.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
         user = await _userDirectory.UpdateAsync(user, ct);
 
-        var orders = await _appDb.Orders
+        var orders = await _ordersDb.Orders
             .AsNoTracking()
             .Where(x => x.UserId == req.Id)
             .ToListAsync(ct);

@@ -85,7 +85,7 @@ public sealed class OrderExecutionDispatchConsumer : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
             var outbox = scope.ServiceProvider.GetRequiredService<IIntegrationEventOutbox>();
 
             var alreadyProcessed = await db.ConsumedMessages
