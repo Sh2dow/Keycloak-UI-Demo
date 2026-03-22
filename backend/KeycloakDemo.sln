@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "backend.AppHost", "backend.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "backend.Orders.Api", "backend.Orders.Api\backend.Orders.Api.csproj", "{BCF877A4-357A-4197-96CF-8B1C15E4CDA7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "backend.Payments.Api", "backend.Payments.Api\backend.Payments.Api.csproj", "{4372FF4F-173D-4635-B3DC-B8FE01AC147D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -195,6 +197,18 @@ Global
 		{BCF877A4-357A-4197-96CF-8B1C15E4CDA7}.Release|x64.Build.0 = Release|Any CPU
 		{BCF877A4-357A-4197-96CF-8B1C15E4CDA7}.Release|x86.ActiveCfg = Release|Any CPU
 		{BCF877A4-357A-4197-96CF-8B1C15E4CDA7}.Release|x86.Build.0 = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|x64.Build.0 = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Debug|x86.Build.0 = Debug|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|x64.ActiveCfg = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|x64.Build.0 = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|x86.ActiveCfg = Release|Any CPU
+		{4372FF4F-173D-4635-B3DC-B8FE01AC147D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
