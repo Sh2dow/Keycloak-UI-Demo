@@ -81,7 +81,15 @@ if (string.IsNullOrWhiteSpace(defaultConnectionString))
         "backend.AppHost injects ConnectionStrings__Default for backend.Api.");
 }
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<TasksDbContext>(options =>
+    options.UseNpgsql(defaultConnectionString)
+        .UseSnakeCaseNamingConvention());
+
+builder.Services.AddDbContext<OrdersDbContext>(options =>
+    options.UseNpgsql(defaultConnectionString)
+        .UseSnakeCaseNamingConvention());
+
+builder.Services.AddDbContext<PaymentsDbContext>(options =>
     options.UseNpgsql(defaultConnectionString)
         .UseSnakeCaseNamingConvention());
 

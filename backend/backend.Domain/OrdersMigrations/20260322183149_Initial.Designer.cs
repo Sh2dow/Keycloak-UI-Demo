@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Domain.Data;
 
 #nullable disable
 
-namespace backend.Migrations
+namespace backend.Domain.OrdersMigrations
 {
-    [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(OrdersDbContext))]
+    [Migration("20260322183149_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,41 +24,6 @@ namespace backend.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("backend.Domain.Models.AppUser", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("text")
-                        .HasColumnName("email");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("subject");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("username");
-
-                    b.HasKey("Id")
-                        .HasName("pk_app_users");
-
-                    b.HasIndex("Subject")
-                        .IsUnique()
-                        .HasDatabaseName("ix_app_users_subject");
-
-                    b.ToTable("app_users", (string)null);
-                });
 
             modelBuilder.Entity("backend.Domain.Models.ConsumedMessage", b =>
                 {
@@ -66,12 +34,14 @@ namespace backend.Migrations
 
                     b.Property<string>("Consumer")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("consumer");
 
                     b.Property<string>("MessageId")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("message_id");
 
                     b.Property<DateTime>("ProcessedAtUtc")
@@ -80,6 +50,10 @@ namespace backend.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_consumed_messages");
+
+                    b.HasIndex("Consumer", "MessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_consumed_messages_consumer_message_id");
 
                     b.ToTable("consumed_messages", (string)null);
                 });
@@ -95,31 +69,36 @@ namespace backend.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("character varying(13)")
-                        .HasColumnName("discriminator");
-
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalAmount")
-                        .HasColumnType("numeric")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_amount");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<string>("order_type")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("order_type");
+
                     b.HasKey("Id")
                         .HasName("pk_orders");
 
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_orders_user_id");
+
                     b.ToTable("orders", (string)null);
 
-                    b.HasDiscriminator().HasValue("Order");
+                    b.HasDiscriminator<string>("order_type").HasValue("Order");
 
                     b.UseTphMappingStrategy();
                 });
@@ -148,7 +127,8 @@ namespace backend.Migrations
                         .HasColumnName("execution_failed_at_utc");
 
                     b.Property<string>("ExecutionFailureReason")
-                        .HasColumnType("text")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("execution_failure_reason");
 
                     b.Property<DateTime?>("ExecutionStartedAtUtc")
@@ -173,7 +153,8 @@ namespace backend.Migrations
 
                     b.Property<string>("State")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("state");
 
                     b.Property<DateTime>("UpdatedAtUtc")
@@ -187,6 +168,10 @@ namespace backend.Migrations
                     b.HasKey("Id")
                         .HasName("pk_order_saga_states");
 
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_order_saga_states_order_id");
+
                     b.ToTable("order_saga_states", (string)null);
                 });
 
@@ -198,16 +183,19 @@ namespace backend.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("CorrelationId")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("correlation_id");
 
                     b.Property<string>("EventType")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("event_type");
 
                     b.Property<string>("LastError")
-                        .HasColumnType("text")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
                         .HasColumnName("last_error");
 
                     b.Property<DateTime>("OccurredAtUtc")
@@ -229,133 +217,20 @@ namespace backend.Migrations
 
                     b.Property<string>("RoutingKey")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("routing_key");
 
                     b.HasKey("Id")
                         .HasName("pk_outbox_messages");
 
+                    b.HasIndex("OccurredAtUtc")
+                        .HasDatabaseName("ix_outbox_messages_occurred_at_utc");
+
+                    b.HasIndex("PublishedAtUtc")
+                        .HasDatabaseName("ix_outbox_messages_published_at_utc");
+
                     b.ToTable("outbox_messages", (string)null);
-                });
-
-            modelBuilder.Entity("backend.Domain.Models.PaymentEventRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("AttemptNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempt_number");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("data");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event_type");
-
-                    b.Property<DateTime>("OccurredAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at_utc");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("order_id");
-
-                    b.Property<Guid>("PaymentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("payment_id");
-
-                    b.Property<int>("SequenceNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("sequence_number");
-
-                    b.HasKey("Id")
-                        .HasName("pk_payment_event_records");
-
-                    b.ToTable("payment_event_records", (string)null);
-                });
-
-            modelBuilder.Entity("backend.Domain.Models.TaskComment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AuthorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("author_id");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("task_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_task_comments");
-
-                    b.HasIndex("TaskId")
-                        .HasDatabaseName("ix_task_comments_task_id");
-
-                    b.ToTable("task_comments", (string)null);
-                });
-
-            modelBuilder.Entity("backend.Domain.Models.TaskItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("priority");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at_utc");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_tasks");
-
-                    b.ToTable("tasks", (string)null);
                 });
 
             modelBuilder.Entity("backend.Domain.Models.DigitalOrder", b =>
@@ -364,10 +239,13 @@ namespace backend.Migrations
 
                     b.Property<string>("DownloadUrl")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("download_url");
 
-                    b.HasDiscriminator().HasValue("DigitalOrder");
+                    b.ToTable("orders", (string)null);
+
+                    b.HasDiscriminator().HasValue("digital");
                 });
 
             modelBuilder.Entity("backend.Domain.Models.PhysicalOrder", b =>
@@ -376,31 +254,18 @@ namespace backend.Migrations
 
                     b.Property<string>("ShippingAddress")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
                         .HasColumnName("shipping_address");
 
                     b.Property<string>("TrackingNumber")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("tracking_number");
 
-                    b.HasDiscriminator().HasValue("PhysicalOrder");
-                });
+                    b.ToTable("orders", (string)null);
 
-            modelBuilder.Entity("backend.Domain.Models.TaskComment", b =>
-                {
-                    b.HasOne("backend.Domain.Models.TaskItem", "Task")
-                        .WithMany("Comments")
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_task_comments_tasks_task_id");
-
-                    b.Navigation("Task");
-                });
-
-            modelBuilder.Entity("backend.Domain.Models.TaskItem", b =>
-                {
-                    b.Navigation("Comments");
+                    b.HasDiscriminator().HasValue("physical");
                 });
 #pragma warning restore 612, 618
         }

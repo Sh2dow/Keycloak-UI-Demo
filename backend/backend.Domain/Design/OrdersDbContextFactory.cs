@@ -1,15 +1,15 @@
-using backend.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using backend.Domain.Data;
 
 namespace backend.Domain.Design;
 
-public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbContext>
+public sealed class OrdersDbContextFactory : IDesignTimeDbContextFactory<OrdersDbContext>
 {
-    public AuthDbContext CreateDbContext(string[] args)
+    public OrdersDbContext CreateDbContext(string[] args)
     {
-        var envConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Auth");
+        var envConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Default");
         if (!string.IsNullOrWhiteSpace(envConnectionString))
         {
             return CreateDbContext(envConnectionString);
@@ -24,11 +24,11 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("Auth");
+        var connectionString = configuration.GetConnectionString("Default");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                $"Connection string 'Auth' was not found. Configuration base path: '{basePath}'.");
+                $"Connection string 'Default' was not found. Configuration base path: '{basePath}'.");
         }
 
         return CreateDbContext(connectionString);
@@ -40,9 +40,9 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
         var candidates = new[]
         {
             current.FullName,
-            Path.Combine(current.FullName, "backend.Auth.Api"),
+            Path.Combine(current.FullName, "backend.Api"),
             current.Parent?.FullName,
-            current.Parent is null ? null : Path.Combine(current.Parent.FullName, "backend.Auth.Api")
+            current.Parent is null ? null : Path.Combine(current.Parent.FullName, "backend.Api")
         }
         .Where(path => !string.IsNullOrWhiteSpace(path))
         .Select(path => path!)
@@ -61,13 +61,13 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
             $"Could not locate appsettings.json. Checked: {string.Join(", ", candidates)}");
     }
 
-    private static AuthDbContext CreateDbContext(string connectionString)
+    private static OrdersDbContext CreateDbContext(string connectionString)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<AuthDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<OrdersDbContext>();
         optionsBuilder.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsAssembly(typeof(AuthDbContext).Assembly.GetName().Name))
+                npgsql.MigrationsAssembly(typeof(OrdersDbContext).Assembly.GetName().Name))
             .UseSnakeCaseNamingConvention();
 
-        return new AuthDbContext(optionsBuilder.Options);
+        return new OrdersDbContext(optionsBuilder.Options);
     }
 }

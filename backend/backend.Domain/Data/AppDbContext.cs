@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Domain.Data;
 
+/// <summary>
+/// Obsolete - kept for backward compatibility during migration.
+/// Use TasksDbContext, OrdersDbContext, or PaymentsDbContext directly.
+/// </summary>
+[Obsolete("Use specific contexts: TasksDbContext, OrdersDbContext, or PaymentsDbContext")]
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
@@ -10,164 +15,53 @@ public class AppDbContext : DbContext
     {
     }
 
+    // Obsolete DbSets - these will be removed after migration
+    [Obsolete("Use TasksDbContext.Tasks instead")]
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    
+    [Obsolete("Use TasksDbContext.TaskComments instead")]
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+    
+    [Obsolete("Use OrdersDbContext.Orders instead")]
     public DbSet<Order> Orders => Set<Order>();
+    
+    [Obsolete("Use OrdersDbContext.OrderSagaStates instead")]
     public DbSet<OrderSagaState> OrderSagaStates => Set<OrderSagaState>();
+    
+    [Obsolete("Use OrdersDbContext.OutboxMessages instead")]
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    
+    [Obsolete("Use OrdersDbContext.ConsumedMessages instead")]
     public DbSet<ConsumedMessage> ConsumedMessages => Set<ConsumedMessage>();
+    
+    [Obsolete("Use PaymentsDbContext.PaymentEventRecords instead")]
     public DbSet<PaymentEventRecord> PaymentEventRecords => Set<PaymentEventRecord>();
+    
+    [Obsolete("Use OrdersDbContext.Orders instead")]
+    public DbSet<DigitalOrder> DigitalOrders => Set<DigitalOrder>();
+    
+    [Obsolete("Use OrdersDbContext.Orders instead")]
+    public DbSet<PhysicalOrder> PhysicalOrders => Set<PhysicalOrder>();
+    
+    [Obsolete("Use OrdersDbContext.Orders instead")]
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<TaskItem>(entity =>
+        // Keep this empty now - all entity configuration moved to specific contexts
+        // This prevents duplicate config errors while AppDbContext is still in use
+        
+        // Note: OrderEvent is not configured because it's an abstract base class for domain events
+        // and EF Core doesn't support abstract base types without concrete derived types.
+        
+        // Configure AppUser (for auth-related user data)
+        modelBuilder.Entity<AppUser>(entity =>
         {
             entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Title)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(x => x.Description)
-                .HasMaxLength(2000);
-
-            entity.Property(x => x.Status)
-                .IsRequired()
-                .HasMaxLength(32);
-
-            entity.Property(x => x.Priority)
-                .IsRequired()
-                .HasMaxLength(32);
-
-            entity.HasIndex(x => x.UserId);
-
-            entity.HasMany(x => x.Comments)
-                .WithOne(x => x.Task)
-                .HasForeignKey(x => x.TaskId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.Subject).IsUnique();
         });
-
-        modelBuilder.Entity<TaskComment>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Content)
-                .IsRequired()
-                .HasMaxLength(1000);
-
-            entity.HasIndex(x => x.TaskId);
-            entity.HasIndex(x => x.AuthorId);
-        });
-
-        modelBuilder.Entity<Order>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.TotalAmount)
-                .HasPrecision(18, 2);
-
-            entity.Property(x => x.Status)
-                .IsRequired()
-                .HasMaxLength(50);
-
-            entity.HasIndex(x => x.UserId);
-
-            entity.HasDiscriminator<string>("order_type")
-                .HasValue<DigitalOrder>("digital")
-                .HasValue<PhysicalOrder>("physical");
-        });
-
+        
+        // Configure Order navigation to avoid relationship errors with Events property
         modelBuilder.Entity<Order>().Ignore(x => x.Events);
-
-        modelBuilder.Entity<DigitalOrder>(entity =>
-        {
-            entity.Property(x => x.DownloadUrl)
-                .IsRequired()
-                .HasMaxLength(500);
-        });
-
-        modelBuilder.Entity<PhysicalOrder>(entity =>
-        {
-            entity.Property(x => x.ShippingAddress)
-                .IsRequired()
-                .HasMaxLength(300);
-
-            entity.Property(x => x.TrackingNumber)
-                .HasMaxLength(100);
-        });
-
-        modelBuilder.Entity<OrderSagaState>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.State)
-                .IsRequired()
-                .HasMaxLength(64);
-
-            entity.Property(x => x.ExecutionFailureReason)
-                .HasMaxLength(1000);
-
-            entity.HasIndex(x => x.OrderId)
-                .IsUnique();
-        });
-
-        modelBuilder.Entity<OutboxMessage>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.EventType)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(x => x.RoutingKey)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(x => x.Payload)
-                .IsRequired();
-
-            entity.Property(x => x.CorrelationId)
-                .HasMaxLength(100);
-
-            entity.Property(x => x.LastError)
-                .HasMaxLength(2000);
-
-            entity.HasIndex(x => x.PublishedAtUtc);
-            entity.HasIndex(x => x.OccurredAtUtc);
-        });
-
-        modelBuilder.Entity<ConsumedMessage>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Consumer)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(x => x.MessageId)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            entity.HasIndex(x => new { x.Consumer, x.MessageId })
-                .IsUnique();
-        });
-
-    modelBuilder.Entity<PaymentEventRecord>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.EventType)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(x => x.Data)
-                .IsRequired();
-
-            entity.HasIndex(x => x.OrderId);
-            entity.HasIndex(x => new { x.OrderId, x.AttemptNumber, x.SequenceNumber })
-                .IsUnique();
-            entity.HasIndex(x => new { x.PaymentId, x.SequenceNumber })
-                .IsUnique();
-        });
     }
 }
