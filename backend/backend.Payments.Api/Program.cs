@@ -41,6 +41,8 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
+builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 
 var app = builder.Build();
 

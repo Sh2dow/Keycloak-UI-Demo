@@ -79,7 +79,9 @@ builder.Services.PostConfigure<RabbitMqOptions>(options =>
         options.Uri = aspireConnectionString;
     }
 });
-builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
+
+// Note: RabbitMqOutboxDispatcher removed from backend.Api (gateway/BFF)
+// Each service (Orders, Tasks, Payments, Auth) should register its own dispatcher if needed
 
 builder.Services.AddCors(options =>
 {

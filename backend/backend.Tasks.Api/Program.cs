@@ -1,6 +1,8 @@
 using backend.Domain.Data;
 using backend.Infrastructure.Application.Users;
+using backend.Infrastructure.Infrastructure.Messaging;
 using backend.ServiceDefaults;
+using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +12,9 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Register MediatR handlers from the feature assembly
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(backend.Tasks.Requests.Tasks.CreateTaskCommand).Assembly));
 
 // Configure database connections - use dedicated connection strings per service
 var tasksDbConnectionString = builder.Configuration.GetConnectionString("Tasks");
@@ -36,6 +41,27 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
+builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+
+// Register RabbitMQ connection factory
+builder.Services.AddSingleton<RabbitMqConnectionFactory>();
+
+// Override RabbitMQ URI from environment variable if available
+builder.Services.PostConfigure<RabbitMqOptions>(options =>
+{
+    var aspireConnectionString = builder.Configuration.GetConnectionString("messaging");
+    if (!string.IsNullOrWhiteSpace(aspireConnectionString))
+    {
+        options.Uri = aspireConnectionString;
+    }
+});
+
+// Register outbox dispatcher for tasks (optional - requires RabbitMQ)
+if (builder.Configuration.GetValue<bool>("RabbitMq:Enabled", true))
+{
+    builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
+}
 
 var app = builder.Build();
 

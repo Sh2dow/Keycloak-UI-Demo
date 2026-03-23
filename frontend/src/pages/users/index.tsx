@@ -173,7 +173,7 @@ export function UsersPage() {
                             <Table.Td>{user.username}</Table.Td>
                             <Table.Td>{user.subject}</Table.Td>
                             <Table.Td>{user.email ?? "-"}</Table.Td>
-                            <Table.Td>{user.orders.length}</Table.Td>
+                            <Table.Td>{user.orders?.length ?? 0}</Table.Td>
                             <Table.Td>
                                 <Group gap="xs">
                                     <Button size="xs" variant="light" onClick={() => onOpenEdit(user)}>
@@ -205,13 +205,13 @@ export function UsersPage() {
                 <Card key={`orders-${user.id}`} withBorder radius="md" padding="md">
                     <Group justify="space-between" mb="sm">
                         <Text fw={700}>{user.username}</Text>
-                        <Badge>{user.orders.length} orders</Badge>
+                        <Badge>{user.orders?.length ?? 0} orders</Badge>
                     </Group>
-                    {user.orders.length === 0 ? (
+                    {user.orders?.length === 0 ? (
                         <Text c="dimmed">No orders</Text>
                     ) : (
                         <Stack gap="xs">
-                            {user.orders.map((order) => (
+                            {user.orders?.map((order) => (
                                 <Text key={order.id} size="sm">
                                     {order.orderType.toUpperCase()} | ${order.totalAmount.toFixed(2)} | {order.status}
                                 </Text>
