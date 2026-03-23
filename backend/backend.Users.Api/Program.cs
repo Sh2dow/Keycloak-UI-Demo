@@ -11,7 +11,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(backend.Users.Requests.Users.CreateUserCommand).Assembly));
 
 // Configure database connections - use dedicated connection strings per service
 var authDbConnectionString = builder.Configuration.GetConnectionString("Auth");
