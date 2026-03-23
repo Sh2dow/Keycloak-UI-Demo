@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace backend.Domain.PaymentsMigrations
+namespace Payments
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class PaymentsInitial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

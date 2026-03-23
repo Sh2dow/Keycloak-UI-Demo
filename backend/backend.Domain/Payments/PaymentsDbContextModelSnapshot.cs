@@ -8,7 +8,7 @@ using backend.Domain.Data;
 
 #nullable disable
 
-namespace backend.Domain.PaymentsMigrations
+namespace Payments
 {
     [DbContext(typeof(PaymentsDbContext))]
     partial class PaymentsDbContextModelSnapshot : ModelSnapshot
@@ -17,7 +17,7 @@ namespace backend.Domain.PaymentsMigrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
