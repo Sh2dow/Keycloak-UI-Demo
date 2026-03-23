@@ -11,12 +11,10 @@ namespace backend.Users.Handlers.Users;
 public sealed class GetUserByIdHandler : IRequestHandler<GetUserByIdQuery, UserWithOrdersDto?>
 {
     private readonly IUserDirectory _userDirectory;
-    private readonly OrdersDbContext _ordersDb;
 
-    public GetUserByIdHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb)
+    public GetUserByIdHandler(IUserDirectory userDirectory)
     {
         _userDirectory = userDirectory;
-        _ordersDb = ordersDb;
     }
 
     public async Task<UserWithOrdersDto?> Handle(GetUserByIdQuery req, CancellationToken ct)
@@ -27,11 +25,8 @@ public sealed class GetUserByIdHandler : IRequestHandler<GetUserByIdQuery, UserW
             return null;
         }
 
-        var orders = await _ordersDb.Orders
-            .AsNoTracking()
-            .Where(x => x.UserId == req.Id)
-            .ToListAsync(ct);
-
-        return user.ToDto(orders);
+        // In a real microservices architecture, orders would be fetched via HTTP call to orders-api
+        // For now, return user without orders
+        return user.ToDto([]);
     }
 }

@@ -13,13 +13,11 @@ namespace backend.Users.Handlers.Users;
 public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Result<UserWithOrdersDto>>
 {
     private readonly IUserDirectory _userDirectory;
-    private readonly OrdersDbContext _ordersDb;
     private readonly IIntegrationEventOutbox _outbox;
 
-    public UpdateUserHandler(IUserDirectory userDirectory, OrdersDbContext ordersDb, IIntegrationEventOutbox outbox)
+    public UpdateUserHandler(IUserDirectory userDirectory, IIntegrationEventOutbox outbox)
     {
         _userDirectory = userDirectory;
-        _ordersDb = ordersDb;
         _outbox = outbox;
     }
 
@@ -45,11 +43,8 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand, Resul
                 ct);
         }
 
-        var orders = await _ordersDb.Orders
-            .AsNoTracking()
-            .Where(x => x.UserId == req.Id)
-            .ToListAsync(ct);
-
-        return backend.Shared.Application.Results.Result<UserWithOrdersDto>.Success(user.ToDto(orders));
+        // In a real microservices architecture, orders would be fetched via HTTP call to orders-api
+        // For now, return user without orders
+        return backend.Shared.Application.Results.Result<UserWithOrdersDto>.Success(user.ToDto([]));
     }
 }

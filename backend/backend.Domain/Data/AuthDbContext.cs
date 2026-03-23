@@ -11,6 +11,7 @@ public class AuthDbContext : DbContext
     }
 
     public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,11 @@ public class AuthDbContext : DbContext
 
             entity.HasIndex(x => x.Subject)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
         });
     }
 }

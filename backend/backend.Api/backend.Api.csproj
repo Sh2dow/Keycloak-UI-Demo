@@ -7,20 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="EFCore.NamingConventions" Version="10.0.0" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.0" />
-    <PackageReference Include="MediatR" Version="14.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
+    <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="MediatR" Version="14.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.1">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,7 +28,6 @@
     <ProjectReference Include="..\backend.Infrastructure\backend.Infrastructure.csproj" />
     <ProjectReference Include="..\backend.ServiceDefaults\backend.ServiceDefaults.csproj" />
     <ProjectReference Include="..\backend.Shared\backend.Shared.csproj" />
-    <ProjectReference Include="..\backend.Users\backend.Users.csproj" />
   </ItemGroup>
 
   <ItemGroup>

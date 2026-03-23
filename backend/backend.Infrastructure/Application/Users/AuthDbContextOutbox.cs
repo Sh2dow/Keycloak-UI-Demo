@@ -2,13 +2,13 @@ using backend.Domain.Data;
 using backend.Domain.Models;
 using backend.Shared.Application.Messaging;
 
-namespace backend.Infrastructure.Infrastructure.Messaging;
+namespace backend.Infrastructure.Application.Users;
 
-public sealed class DbIntegrationEventOutbox : IIntegrationEventOutbox
+public sealed class AuthDbContextOutbox : IIntegrationEventOutbox
 {
     private readonly AuthDbContext _db;
 
-    public DbIntegrationEventOutbox(AuthDbContext db)
+    public AuthDbContextOutbox(AuthDbContext db)
     {
         _db = db;
     }

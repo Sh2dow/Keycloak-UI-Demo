@@ -20,8 +20,7 @@ using RabbitMqOptions = backend.Shared.Configuration.RabbitMqOptions;
 var builder = WebApplication.CreateBuilder(args);
 var featureAssemblies = new[]
 {
-    typeof(Program).Assembly,
-    typeof(backend.Users.Requests.Users.CreateUserCommand).Assembly
+    typeof(Program).Assembly
 };
 
 builder.AddServiceDefaults();
@@ -61,8 +60,8 @@ builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvid
     client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
 });
 
-// Register integration event outbox
-builder.Services.AddTransient<IIntegrationEventOutbox, DbIntegrationEventOutbox>();
+// Register integration event outbox - removed since Users handlers are no longer registered in main API
+// builder.Services.AddTransient<IIntegrationEventOutbox, DbIntegrationEventOutbox>();
 
 // Note: Shared DbContext removed - each service (Tasks, Orders, Payments, Auth) now has its own DB
 // The main API is now a gateway/BFF that routes to individual services via HTTP or reverse proxy
