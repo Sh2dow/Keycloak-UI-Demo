@@ -25,6 +25,16 @@ var authApi = builder.AddProject<Projects.backend_Auth_Api>("auth-api")
     .WaitFor(authDbConnectionString)
     .WaitFor(rabbitmq);
 
+var usersApi = builder.AddProject<Projects.backend_Users_Api>("users-api")
+    .WithReference(authDbConnectionString)
+    .WithReference(rabbitmq)
+    .WithEnvironment("ConnectionStrings__Auth", authDbConnectionString.Resource.ConnectionStringExpression)
+    .WithEnvironment("RabbitMq__Uri", rabbitmq.Resource.ConnectionStringExpression)
+    .WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5005")
+    .WaitFor(api)
+    .WaitFor(authDbConnectionString)
+    .WaitFor(rabbitmq);
+
 var tasksApi = builder.AddProject<Projects.backend_Tasks_Api>("tasks-api")
     .WithReference(tasksDbConnectionString)
     .WithReference(authDbConnectionString)

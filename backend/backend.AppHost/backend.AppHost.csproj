@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\backend.Api\backend.Api.csproj" />
     <ProjectReference Include="..\backend.Auth.Api\backend.Auth.Api.csproj" />
+    <ProjectReference Include="..\backend.Users.Api\backend.Users.Api.csproj" />
     <ProjectReference Include="..\backend.Tasks.Api\backend.Tasks.Api.csproj" />
     <ProjectReference Include="..\backend.Orders.Api\backend.Orders.Api.csproj" />
     <ProjectReference Include="..\backend.Payments.Api\backend.Payments.Api.csproj" />

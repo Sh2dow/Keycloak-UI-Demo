@@ -7,6 +7,7 @@
 
 	<Folder Name="/Services/">
 		<Project Path="backend.Users/backend.Users.csproj" />
+		<Project Path="backend.Users.Api/backend.Users.Api.csproj" />
 		<Project Path="backend.Orders/backend.Orders.csproj" />
 		<Project Path="backend.Payments/backend.Payments.csproj" />
 		<Project Path="backend.Tasks/backend.Tasks.csproj" />
