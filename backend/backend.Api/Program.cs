@@ -5,15 +5,10 @@ using backend.Infrastructure.Application.Behaviors;
 using backend.Infrastructure.Application.Security;
 using backend.Infrastructure.Application.Users;
 using backend.Infrastructure.Infrastructure.Messaging;
-using backend.Orders.Infrastructure.Orders;
-using backend.Orders.Requests.Orders;
-using backend.Payments.Infrastructure.Payments;
 using backend.ServiceDefaults;
 using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Users;
 using backend.Shared.Configuration;
-using backend.Tasks.Requests.Tasks;
-using backend.Users.Requests.Users;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -26,9 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 var featureAssemblies = new[]
 {
     typeof(Program).Assembly,
-    typeof(CreateUserCommand).Assembly,
-    typeof(CreateOrderCommand).Assembly,
-    typeof(CreateTaskCommand).Assembly
+    typeof(backend.Users.Requests.Users.CreateUserCommand).Assembly
 };
 
 builder.AddServiceDefaults();
@@ -71,27 +64,8 @@ builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvid
 // Register integration event outbox
 builder.Services.AddTransient<IIntegrationEventOutbox, DbIntegrationEventOutbox>();
 
-// Configure database connection
-var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
-
-if (string.IsNullOrWhiteSpace(defaultConnectionString))
-{
-    throw new InvalidOperationException(
-        "Connection string 'Default' is missing. Ensure appsettings.json is loaded or " +
-        "backend.AppHost injects ConnectionStrings__Default for backend.Api.");
-}
-
-builder.Services.AddDbContext<TasksDbContext>(options =>
-    options.UseNpgsql(defaultConnectionString)
-        .UseSnakeCaseNamingConvention());
-
-builder.Services.AddDbContext<OrdersDbContext>(options =>
-    options.UseNpgsql(defaultConnectionString)
-        .UseSnakeCaseNamingConvention());
-
-builder.Services.AddDbContext<PaymentsDbContext>(options =>
-    options.UseNpgsql(defaultConnectionString)
-        .UseSnakeCaseNamingConvention());
+// Note: Shared DbContext removed - each service (Tasks, Orders, Payments, Auth) now has its own DB
+// The main API is now a gateway/BFF that routes to individual services via HTTP or reverse proxy
 
 // Configure RabbitMQ connection factory with environment variable support
 builder.Services.AddSingleton<RabbitMqConnectionFactory>();
@@ -107,9 +81,6 @@ builder.Services.PostConfigure<RabbitMqOptions>(options =>
     }
 });
 builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
-builder.Services.AddHostedService<PaymentStubConsumer>();
-builder.Services.AddHostedService<OrderSagaConsumer>();
-builder.Services.AddHostedService<OrderExecutionDispatchConsumer>();
 
 builder.Services.AddCors(options =>
 {

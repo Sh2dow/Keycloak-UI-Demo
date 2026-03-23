@@ -11,20 +11,29 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure database connections
-var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
-if (string.IsNullOrWhiteSpace(defaultConnectionString))
+// Configure database connections - use dedicated connection strings per service
+var tasksDbConnectionString = builder.Configuration.GetConnectionString("Tasks");
+var authDbConnectionString = builder.Configuration.GetConnectionString("Auth");
+
+if (string.IsNullOrWhiteSpace(tasksDbConnectionString))
 {
     throw new InvalidOperationException(
-        "Connection string 'Default' is missing for backend.Tasks.Api.");
+        "Connection string 'Tasks' is missing for backend.Tasks.Api.");
+}
+
+if (string.IsNullOrWhiteSpace(authDbConnectionString))
+{
+    throw new InvalidOperationException(
+        "Connection string 'Auth' is missing for backend.Tasks.Api.");
 }
 
 builder.Services.AddDbContext<TasksDbContext>(options =>
-    options.UseNpgsql(defaultConnectionString)
+    options.UseNpgsql(tasksDbConnectionString)
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Auth") ?? throw new InvalidOperationException("Connection string 'Auth' not found.")));
+    options.UseNpgsql(authDbConnectionString)
+        .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 

@@ -11,23 +11,40 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure database connections
-var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
-if (string.IsNullOrWhiteSpace(defaultConnectionString))
+// Configure database connections - use dedicated connection strings per service
+var ordersDbConnectionString = builder.Configuration.GetConnectionString("Orders");
+var paymentsDbConnectionString = builder.Configuration.GetConnectionString("Payments");
+var authDbConnectionString = builder.Configuration.GetConnectionString("Auth");
+
+if (string.IsNullOrWhiteSpace(ordersDbConnectionString))
 {
     throw new InvalidOperationException(
-        "Connection string 'Default' is missing for backend.Orders.Api.");
+        "Connection string 'Orders' is missing for backend.Orders.Api.");
+}
+
+if (string.IsNullOrWhiteSpace(paymentsDbConnectionString))
+{
+    throw new InvalidOperationException(
+        "Connection string 'Payments' is missing for backend.Orders.Api.");
+}
+
+if (string.IsNullOrWhiteSpace(authDbConnectionString))
+{
+    throw new InvalidOperationException(
+        "Connection string 'Auth' is missing for backend.Orders.Api.");
 }
 
 builder.Services.AddDbContext<OrdersDbContext>(options =>
-    options.UseNpgsql(defaultConnectionString)
+    options.UseNpgsql(ordersDbConnectionString)
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddDbContext<PaymentsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default") ?? throw new InvalidOperationException("Connection string 'Default' not found.")));
+    options.UseNpgsql(paymentsDbConnectionString)
+        .UseSnakeCaseNamingConvention());
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Auth") ?? throw new InvalidOperationException("Connection string 'Auth' not found.")));
+    options.UseNpgsql(authDbConnectionString)
+        .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 
