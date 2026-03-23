@@ -11,6 +11,7 @@
     <ProjectReference Include="..\backend.Users\backend.Users.csproj" />
     <ProjectReference Include="..\backend.Infrastructure\backend.Infrastructure.csproj" />
     <ProjectReference Include="..\backend.ServiceDefaults\backend.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\backend.Shared\backend.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
