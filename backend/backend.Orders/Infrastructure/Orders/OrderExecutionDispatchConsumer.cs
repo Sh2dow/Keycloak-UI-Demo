@@ -7,6 +7,7 @@ using backend.Domain.Models;
 using backend.Infrastructure.Infrastructure.Messaging;
 using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

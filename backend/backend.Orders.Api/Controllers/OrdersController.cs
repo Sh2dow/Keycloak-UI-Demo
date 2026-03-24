@@ -1,7 +1,9 @@
 using backend.Domain.Data;
 using backend.Orders.Dtos;
+using backend.Orders.Mappers;
 using backend.Orders.Requests.Orders;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Orders.Api.Controllers;
@@ -11,79 +13,76 @@ namespace backend.Orders.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<OrdersController> _logger;
 
-    public OrdersController(ISender sender)
+    public OrdersController(ISender sender, ILogger<OrdersController> logger)
     {
         _sender = sender;
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<OrderViewDto>> GetOrderById(Guid id, CancellationToken ct)
-    {
-        var order = await _sender.Send(new GetOrderByIdQuery(id), ct);
-        return order is null ? NotFound() : Ok(order);
+        _logger = logger;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<OrderViewDto>>> GetOrders([FromQuery] GetOrdersQuery query, CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<OrderViewDto>>> GetOrders(CancellationToken ct)
     {
-        var orders = await _sender.Send(query, ct);
-        return Ok(orders);
+        var result = await _sender.Send(new GetOrdersQuery(), ct);
+        return Ok(result);
     }
 
-    [HttpPost("digital")]
-    public async Task<ActionResult<OrderViewDto>> CreateDigitalOrder(CreateDigitalOrderCommand command, CancellationToken ct)
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<OrderViewDto>> GetOrderById(Guid id, CancellationToken ct)
     {
-        var result = await _sender.Send(command, ct);
-        return result.IsSuccess ? CreatedAtAction(nameof(GetOrderById), new { id = result.Value.Id }, result.Value) : BadRequest(result.Errors);
+        var result = await _sender.Send(new GetOrderByIdQuery(id), ct);
+        return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("physical")]
-    public async Task<ActionResult<OrderViewDto>> CreatePhysicalOrder(CreatePhysicalOrderCommand command, CancellationToken ct)
+    [HttpGet("{id:guid}/workflow")]
+    public async Task<ActionResult<OrderWorkflowDto>> GetOrderWorkflow(Guid id, CancellationToken ct)
     {
-        var result = await _sender.Send(command, ct);
-        return result.IsSuccess ? CreatedAtAction(nameof(GetOrderById), new { id = result.Value.Id }, result.Value) : BadRequest(result.Errors);
+        var result = await _sender.Send(new GetOrderWorkflowQuery(id), ct);
+        return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPut("{id}")]
+    [HttpGet("{id:guid}/timeline")]
+    public async Task<ActionResult<IReadOnlyList<OrderTimelineItemDto>>> GetOrderTimeline(Guid id, CancellationToken ct)
+    {
+        var result = await _sender.Send(new GetOrderTimelineQuery(id), ct);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<OrderViewDto>> CreateOrder(CreateOrderCommand command, CancellationToken ct)
+    {
+        try
+        {
+            _logger.LogInformation("Creating order: {OrderType}, {TotalAmount}", command.OrderType, command.TotalAmount);
+
+            var result = await _sender.Send(command, ct);
+            
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            return CreatedAtAction(nameof(GetOrderById), new { id = result.Value.Id }, result.Value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating order");
+            throw;
+        }
+    }
+
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<OrderViewDto>> UpdateOrder(Guid id, UpdateOrderCommand command, CancellationToken ct)
     {
-        var result = await _sender.Send(new UpdateOrderCommand(id, command.TotalAmount, command.Status, command.DownloadUrl, command.ShippingAddress, command.TrackingNumber), ct);
+        var result = await _sender.Send(command with { Id = id }, ct);
         return result.IsSuccess ? Ok(result.Value) : NotFound();
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteOrder(Guid id, CancellationToken ct)
     {
         var result = await _sender.Send(new DeleteOrderCommand(id), ct);
-        return result.IsSuccess ? NoContent() : NotFound();
-    }
-
-    [HttpGet("{orderId}/payment")]
-    public async Task<ActionResult<OrderPaymentDetailsDto>> GetOrderPaymentDetails(Guid orderId, CancellationToken ct)
-    {
-        var details = await _sender.Send(new GetOrderPaymentDetailsQuery(orderId), ct);
-        return details is null ? NotFound() : Ok(details);
-    }
-
-    [HttpGet("{orderId}/timeline")]
-    public async Task<ActionResult<IReadOnlyList<OrderTimelineItemDto>>> GetOrderTimeline(Guid orderId, CancellationToken ct)
-    {
-        var timeline = await _sender.Send(new GetOrderTimelineQuery(orderId), ct);
-        return timeline is null ? NotFound() : Ok(timeline);
-    }
-
-    [HttpGet("{orderId}/workflow")]
-    public async Task<ActionResult<OrderWorkflowDto>> GetOrderWorkflow(Guid orderId, CancellationToken ct)
-    {
-        var workflow = await _sender.Send(new GetOrderWorkflowQuery(orderId), ct);
-        return workflow is null ? NotFound() : Ok(workflow);
-    }
-
-    [HttpPost("{orderId}/retry-payment")]
-    public async Task<ActionResult<OrderViewDto>> RetryOrderPayment(Guid orderId, CancellationToken ct)
-    {
-        var result = await _sender.Send(new RetryOrderPaymentCommand(orderId), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound();
+        return result.Value ? NoContent() : NotFound();
     }
 }

@@ -34,7 +34,10 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
         var sub = _currentUser.Subject;
         if (string.IsNullOrWhiteSpace(sub))
         {
-            throw new HttpProblemException(StatusCodes.Status401Unauthorized, "Unauthorized", "Missing sub claim.");
+            // Return a default user for anonymous requests
+            var defaultUser = await _userDirectory.EnsureAsync("anonymous", "Anonymous", null, ct);
+            _cachedUser = defaultUser;
+            return _cachedUser;
         }
 
         var currentUser = await _userDirectory.EnsureAsync(sub, _currentUser.PreferredUsername, _currentUser.Email, ct);

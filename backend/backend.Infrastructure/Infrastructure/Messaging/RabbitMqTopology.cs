@@ -1,3 +1,4 @@
+using backend.Shared.Configuration;
 using RabbitMQ.Client;
 
 namespace backend.Infrastructure.Infrastructure.Messaging;

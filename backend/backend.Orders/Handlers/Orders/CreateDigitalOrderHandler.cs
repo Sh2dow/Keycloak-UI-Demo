@@ -12,6 +12,7 @@ using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Messaging.Messages;
 using backend.Shared.Application.Users;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Orders.Handlers.Orders;
 
@@ -21,43 +22,33 @@ public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrd
     private readonly IEffectiveUserAccessor _effectiveUser;
     private readonly IIntegrationEventOutbox _outbox;
     private readonly CreateDigitalOrderCommandValidator _validator;
+    private readonly ILogger<CreateDigitalOrderHandler> _logger;
 
     public CreateDigitalOrderHandler(
         OrdersDbContext db,
         IEffectiveUserAccessor effectiveUser,
         IIntegrationEventOutbox outbox,
-        CreateDigitalOrderCommandValidator validator)
+        CreateDigitalOrderCommandValidator validator,
+        ILogger<CreateDigitalOrderHandler> logger)
     {
         _db = db;
         _effectiveUser = effectiveUser;
         _outbox = outbox;
         _validator = validator;
+        _logger = logger;
     }
 
     public async Task<Shared.Application.Results.Result<OrderViewDto>> Handle(CreateDigitalOrderCommand req, CancellationToken ct)
     {
-        // Command validation
-        var commandResult = _validator.ValidateCommand(req);
-        if (!commandResult.IsSuccess)
-        {
-            return Shared.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(commandResult.Errors);
-        }
-
         var userId = await _effectiveUser.GetUserIdAsync(ct);
-        var order = req.ToEntity();
-        order.UserId = userId;
-        order.TotalAmount = req.TotalAmount;
-        order.DownloadUrl = req.DownloadUrl.Trim();
-        order.Status = OrderStatuses.PaymentPending;
-
-            // Domain-level validation
-        var domainResult = order.ValidateDigitalOrder();
-        if (!domainResult.IsSuccess)
+        
+        var order = new DigitalOrder
         {
-            return Shared.Application.Results.Result<OrderViewDto>.ValidationFromDomainErrors(domainResult.Errors);
-        }
-
-        _db.Orders.Add(order);
+            UserId = userId,
+            TotalAmount = req.TotalAmount,
+            DownloadUrl = req.DownloadUrl.Trim(),
+            Status = OrderStatuses.PaymentPending
+        };
 
         _db.Orders.Add(order);
 
@@ -72,8 +63,9 @@ public sealed class CreateDigitalOrderHandler : IRequestHandler<CreateDigitalOrd
             order.Id.ToString(),
             ct);
 
+
         await _db.SaveChangesAsync(ct);
 
-         return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto((Order)order));
+        return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
     }
 }

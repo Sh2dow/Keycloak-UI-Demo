@@ -4,6 +4,7 @@ using backend.Tasks.Dtos;
 using backend.Tasks.Mappers;
 using backend.Tasks.Requests.Tasks;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Tasks.Api.Controllers;
@@ -59,5 +60,12 @@ public class TasksController : ControllerBase
     {
         var result = await _sender.Send(new AddTaskCommentCommand(taskId, command.Content), ct);
         return result.IsSuccess ? CreatedAtAction(nameof(GetTaskById), new { id = taskId }, result.Value) : BadRequest(result.Errors);
+    }
+
+    [HttpGet("debugroles")]
+    public ActionResult<IReadOnlyList<string>> GetDebugRoles()
+    {
+        var roles = User.FindAll("realm_access.roles").Select(c => c.Value).ToList();
+        return Ok(roles);
     }
 }

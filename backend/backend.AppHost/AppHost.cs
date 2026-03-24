@@ -18,22 +18,23 @@ var tasksApi = builder.AddProject<Projects.backend_Tasks_Api>("tasks-api");
 tasksApi.WithEnvironment("ConnectionStrings__Tasks", "Host=localhost;Port=5432;Database=keycloak_demo_tasks;Username=keycloak;Password=123");
 tasksApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
 tasksApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-tasksApi.WithEnvironment("RabbitMq__Enabled", "false");
+tasksApi.WithEnvironment("RabbitMq__Enabled", "true");
 tasksApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5002");
 
 var ordersApi = builder.AddProject<Projects.backend_Orders_Api>("orders-api");
+ordersApi.WithReference(authApi);
 ordersApi.WithEnvironment("ConnectionStrings__Orders", "Host=localhost;Port=5432;Database=keycloak_demo_orders;Username=keycloak;Password=123");
 ordersApi.WithEnvironment("ConnectionStrings__Payments", "Host=localhost;Port=5432;Database=keycloak_demo_payments;Username=keycloak;Password=123");
 ordersApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
 ordersApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-ordersApi.WithEnvironment("RabbitMq__Enabled", "false");
+ordersApi.WithEnvironment("RabbitMq__Enabled", "true");
 ordersApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5003");
 
 var paymentsApi = builder.AddProject<Projects.backend_Payments_Api>("payments-api");
 paymentsApi.WithEnvironment("ConnectionStrings__Payments", "Host=localhost;Port=5432;Database=keycloak_demo_payments;Username=keycloak;Password=123");
 paymentsApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
 paymentsApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-paymentsApi.WithEnvironment("RabbitMq__Enabled", "false");
+paymentsApi.WithEnvironment("RabbitMq__Enabled", "true");
 paymentsApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5004");
 
 builder.Build().Run();

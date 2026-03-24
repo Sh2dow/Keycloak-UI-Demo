@@ -12,17 +12,36 @@ namespace backend.Users.Handlers.Users;
 public sealed class GetUsersHandler : IRequestHandler<GetUsersQuery, IReadOnlyList<UserWithOrdersDto>>
 {
     private readonly IUserDirectory _userDirectory;
+    private readonly OrdersDbContext? _ordersDb;
 
-    public GetUsersHandler(IUserDirectory userDirectory)
+    public GetUsersHandler(IUserDirectory userDirectory, OrdersDbContext? ordersDb = null)
     {
         _userDirectory = userDirectory;
+        _ordersDb = ordersDb;
     }
 
     public async Task<IReadOnlyList<UserWithOrdersDto>> Handle(GetUsersQuery req, CancellationToken ct)
     {
         var users = await _userDirectory.ListAsync(ct);
-        // In a real microservices architecture, orders would be fetched via HTTP call to orders-api
-        // For now, return users without orders
-        return users.Select(user => user.ToDto([])).ToList();
+        
+        if (_ordersDb == null)
+        {
+            return users.Select(user => user.ToDto([])).ToList();
+        }
+
+        var userIds = users.Select(u => u.Id).ToList();
+        var orders = await _ordersDb.Orders
+            .Where(o => userIds.Contains(o.UserId))
+            .ToListAsync(ct);
+
+        var ordersByUser = orders.GroupBy(o => o.UserId).ToDictionary(g => g.Key, g => g.ToList());
+
+        return users.Select(user => 
+        {
+            var userOrders = ordersByUser.TryGetValue(user.Id, out var userOrderList) 
+                ? userOrderList 
+                : [];
+            return user.ToDto(userOrders);
+        }).ToList();
     }
 }

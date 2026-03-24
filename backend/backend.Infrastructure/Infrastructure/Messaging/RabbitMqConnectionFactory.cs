@@ -1,3 +1,4 @@
+using backend.Shared.Configuration;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 

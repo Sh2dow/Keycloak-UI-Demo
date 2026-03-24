@@ -4,6 +4,7 @@ using backend.Domain.Models;
 using backend.Infrastructure.Infrastructure.Messaging;
 using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Messaging.Messages;
+using backend.Shared.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -37,14 +38,21 @@ public sealed class PaymentStubConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation("PaymentStubConsumer starting. Queue: {Queue}", _rabbitOptions.PaymentRequestQueue);
+        
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                _logger.LogInformation("PaymentStubConsumer connecting to RabbitMQ...");
                 await using var connection = await _connectionFactory.CreateConnectionAsync(stoppingToken);
+                _logger.LogInformation("PaymentStubConsumer connected");
+                
                 await using var channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
+                _logger.LogInformation("PaymentStubConsumer channel created");
 
                 await RabbitMqTopology.EnsureConfiguredAsync(channel, _rabbitOptions, stoppingToken);
+                _logger.LogInformation("PaymentStubConsumer topology configured");
 
                 var consumer = new AsyncEventingBasicConsumer(channel);
                 consumer.ReceivedAsync += async (_, args) =>
@@ -52,6 +60,7 @@ public sealed class PaymentStubConsumer : BackgroundService
                     await HandleAsync(channel, args, stoppingToken);
                 };
 
+                _logger.LogInformation("PaymentStubConsumer starting to consume from queue: {Queue}", _rabbitOptions.PaymentRequestQueue);
                 await channel.BasicConsumeAsync(
                     queue: _rabbitOptions.PaymentRequestQueue,
                     autoAck: false,
@@ -75,6 +84,9 @@ public sealed class PaymentStubConsumer : BackgroundService
     private async Task HandleAsync(IChannel channel, BasicDeliverEventArgs args, CancellationToken ct)
     {
         var messageId = args.BasicProperties.MessageId ?? Guid.NewGuid().ToString("N");
+        var eventType = args.BasicProperties.Type ?? "unknown";
+
+        _logger.LogInformation("PaymentStubConsumer received message: {MessageId}, Type: {EventType}", messageId, eventType);
 
         try
         {
@@ -88,12 +100,16 @@ public sealed class PaymentStubConsumer : BackgroundService
 
             if (alreadyProcessed)
             {
+                _logger.LogInformation("Message already processed: {MessageId}", messageId);
                 await channel.BasicAckAsync(args.DeliveryTag, false, ct);
                 return;
             }
 
             var payload = Encoding.UTF8.GetString(args.Body.ToArray());
             var orderPaymentRequested = IntegrationEventSerializer.Deserialize<OrderPaymentRequestedMessage>(payload);
+
+            _logger.LogInformation("Processing payment for order: {OrderId}, Amount: {Amount}", 
+                orderPaymentRequested.OrderId, orderPaymentRequested.TotalAmount);
 
             var currentAttemptNumber = await paymentsDb.PaymentEventRecords
                 .Where(x => x.OrderId == orderPaymentRequested.OrderId)
@@ -189,6 +205,7 @@ public sealed class PaymentStubConsumer : BackgroundService
                 MessageId = messageId
             });
 
+            await ordersDb.SaveChangesAsync(ct);
             await paymentsDb.SaveChangesAsync(ct);
             await channel.BasicAckAsync(args.DeliveryTag, false, ct);
         }

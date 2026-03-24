@@ -1,10 +1,17 @@
+using System.Security.Claims;
 using backend.Domain.Data;
+using backend.Infrastructure.Application.Security;
 using backend.Infrastructure.Application.Users;
 using backend.Infrastructure.Infrastructure.Messaging;
 using backend.ServiceDefaults;
 using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Users;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +19,57 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+var keycloakAuthority = builder.Configuration["Keycloak:Authority"];
+if (string.IsNullOrWhiteSpace(keycloakAuthority))
+{
+    throw new InvalidOperationException("Keycloak:Authority is missing. Configure it in appsettings.json.");
+}
+
+var normalizedAuthority = keycloakAuthority.TrimEnd('/');
+var metadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
+
+// Add authentication with Keycloak
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer(options =>
+    {
+        options.Authority = normalizedAuthority;
+        options.MetadataAddress = metadataAddress;
+        options.RequireHttpsMetadata = false;
+        options.MapInboundClaims = false;
+        options.BackchannelHttpHandler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidIssuer = normalizedAuthority,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(2),
+            NameClaimType = "sub",
+            RoleClaimType = ClaimTypes.Role
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("JwtBearer");
+                logger.LogWarning(ctx.Exception, "JWT authentication failed for {Path}", ctx.Request.Path);
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = null;
+});
+
+builder.Services.AddTransient<IClaimsTransformation, KeycloakRoleClaimsTransformation>();
 
 // Register MediatR handlers from the feature assembly
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(backend.Tasks.Requests.Tasks.CreateTaskCommand).Assembly));
@@ -40,15 +98,19 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(authDbConnectionString)
         .UseSnakeCaseNamingConvention());
 
+builder.Services.AddDbContextFactory<TasksDbContext>();
+
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddHttpContextAccessor();
 
 // Register RabbitMQ connection factory
 builder.Services.AddSingleton<RabbitMqConnectionFactory>();
+builder.Services.Configure<backend.Shared.Configuration.RabbitMqOptions>(builder.Configuration.GetSection(backend.Shared.Configuration.RabbitMqOptions.SectionName));
 
 // Override RabbitMQ URI from environment variable if available
-builder.Services.PostConfigure<RabbitMqOptions>(options =>
+builder.Services.PostConfigure<backend.Shared.Configuration.RabbitMqOptions>(options =>
 {
     var aspireConnectionString = builder.Configuration.GetConnectionString("messaging");
     if (!string.IsNullOrWhiteSpace(aspireConnectionString))
@@ -57,13 +119,52 @@ builder.Services.PostConfigure<RabbitMqOptions>(options =>
     }
 });
 
-// Register outbox dispatcher for tasks (optional - requires RabbitMQ)
+// Register outbox for tasks service
+builder.Services.AddScoped<IIntegrationEventOutbox, IntegrationEventOutbox<TasksDbContext>>();
 if (builder.Configuration.GetValue<bool>("RabbitMq:Enabled", true))
 {
-    builder.Services.AddHostedService<RabbitMqOutboxDispatcher>();
+    builder.Services.AddHostedService<OutboxDispatcher<TasksDbContext>>();
 }
 
 var app = builder.Build();
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
+    if (await DatabaseExistsAsync(tasksDbConnectionString))
+    {
+        await services.GetRequiredService<TasksDbContext>().Database.EnsureCreatedAsync();
+    }
+    else
+    {
+        logger.LogWarning("Skipping TasksDbContext migration because database '{Database}' does not exist or is not visible to the current PostgreSQL role.", new NpgsqlConnectionStringBuilder(tasksDbConnectionString).Database);
+    }
+}
+
+static async Task<bool> DatabaseExistsAsync(string connectionString)
+{
+    var builder = new NpgsqlConnectionStringBuilder(connectionString)
+    {
+        Database = "postgres"
+    };
+
+    await using var connection = new NpgsqlConnection(builder.ConnectionString);
+
+    try
+    {
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SELECT 1 FROM pg_database WHERE datname = @databaseName", connection);
+        command.Parameters.AddWithValue("databaseName", new NpgsqlConnectionStringBuilder(connectionString).Database ?? string.Empty);
+
+        return await command.ExecuteScalarAsync() is not null;
+    }
+    catch (PostgresException ex) when (ex.SqlState is "42501" or "3D000")
+    {
+        return false;
+    }
+}
 
 app.UseSwagger();
 app.UseSwaggerUI();

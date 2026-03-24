@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using backend.Api.Application.Exceptions;
+using backend.Api.Controllers;
 using backend.Domain.Data;
 using backend.Infrastructure.Application.Behaviors;
 using backend.Infrastructure.Application.Security;
@@ -48,6 +49,12 @@ builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection(Key
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.Configure<PaymentsOptions>(builder.Configuration.GetSection(PaymentsOptions.SectionName));
 builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
+builder.Services.AddHttpClient<OrdersController>();
+builder.Services.AddHttpClient<PaymentsController>();
+builder.Services.AddHttpClient<UsersController>();
+builder.Services.AddHttpClient<TasksController>();
+builder.Services.AddHttpClient("Orders");
+builder.Services.AddHttpClient("Payments");
 builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>
 {
     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthServiceOptions>>().Value;

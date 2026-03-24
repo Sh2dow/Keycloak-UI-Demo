@@ -14,4 +14,12 @@ CREATE DATABASE keycloak_demo_orders
 OWNER keycloak
 ENCODING 'UTF8';
 
+CREATE DATABASE keycloak_demo_tasks
+OWNER keycloak
+ENCODING 'UTF8';
+
+CREATE DATABASE keycloak_demo_payments
+OWNER keycloak
+ENCODING 'UTF8';
+
 GRANT ALL PRIVILEGES ON DATABASE keycloak_demo TO keycloak;

@@ -1,16 +1,21 @@
 using backend.Domain.Data;
 using backend.Domain.Models;
 using backend.Shared.Application.Messaging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace backend.Infrastructure.Application.Users;
+namespace backend.Infrastructure.Infrastructure.Messaging;
 
-public sealed class AuthDbContextOutbox : IIntegrationEventOutbox
+public sealed class IntegrationEventOutbox<TContext> : IIntegrationEventOutbox 
+    where TContext : DbContext
 {
-    private readonly AuthDbContext _db;
+    private readonly TContext _db;
+    private readonly ILogger<IntegrationEventOutbox<TContext>> _logger;
 
-    public AuthDbContextOutbox(AuthDbContext db)
+    public IntegrationEventOutbox(TContext db, ILogger<IntegrationEventOutbox<TContext>> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     public Task EnqueueAsync<T>(
@@ -28,7 +33,7 @@ public sealed class AuthDbContextOutbox : IIntegrationEventOutbox
             OccurredAtUtc = DateTime.UtcNow
         };
 
-        _db.OutboxMessages.Add(outboxMessage);
+        _db.Set<OutboxMessage>().Add(outboxMessage);
         return Task.CompletedTask;
     }
 }

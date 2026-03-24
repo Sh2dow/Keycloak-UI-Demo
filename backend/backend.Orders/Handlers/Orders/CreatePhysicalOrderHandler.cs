@@ -44,13 +44,17 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
         }
 
         var userId = await _effectiveUser.GetUserIdAsync(ct);
-        var order = req.ToEntity();
-        order.UserId = userId;
-        order.ShippingAddress = req.ShippingAddress.Trim();
-        order.TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim();
-        order.Status = OrderStatuses.PaymentPending;
+        
+        var order = new PhysicalOrder
+        {
+            UserId = userId,
+            TotalAmount = req.TotalAmount,
+            ShippingAddress = req.ShippingAddress.Trim(),
+            TrackingNumber = string.IsNullOrWhiteSpace(req.TrackingNumber) ? null : req.TrackingNumber.Trim(),
+            Status = OrderStatuses.PaymentPending
+        };
 
-         // Domain-level validation
+        // Domain-level validation
         var domainResult = order.ValidatePhysicalOrder();
         if (!domainResult.IsSuccess)
         {
@@ -72,6 +76,6 @@ public sealed class CreatePhysicalOrderHandler : IRequestHandler<CreatePhysicalO
 
         await _db.SaveChangesAsync(ct);
 
-        return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto((Order)order));
+        return Shared.Application.Results.Result<OrderViewDto>.Success(OrderMapper.ToDto(order));
     }
 }

@@ -1,23 +1,29 @@
 using System.Text;
 using backend.Domain.Data;
+using backend.Domain.Models;
+using backend.Shared.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
 namespace backend.Infrastructure.Infrastructure.Messaging;
 
-public sealed class RabbitMqOutboxDispatcher : BackgroundService
+public sealed class OutboxDispatcher<TContext> : BackgroundService 
+    where TContext : DbContext
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqConnectionFactory _connectionFactory;
     private readonly RabbitMqOptions _options;
-    private readonly ILogger<RabbitMqOutboxDispatcher> _logger;
+    private readonly ILogger<OutboxDispatcher<TContext>> _logger;
 
-    public RabbitMqOutboxDispatcher(
+    public OutboxDispatcher(
         IServiceScopeFactory scopeFactory,
         RabbitMqConnectionFactory connectionFactory,
         IOptions<RabbitMqOptions> options,
-        ILogger<RabbitMqOutboxDispatcher> logger)
+        ILogger<OutboxDispatcher<TContext>> logger)
     {
         _scopeFactory = scopeFactory;
         _connectionFactory = connectionFactory;
@@ -32,6 +38,7 @@ public sealed class RabbitMqOutboxDispatcher : BackgroundService
             try
             {
                 await using var connection = await _connectionFactory.CreateConnectionAsync(stoppingToken);
+                
                 await using var channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
                 await RabbitMqTopology.EnsureConfiguredAsync(channel, _options, stoppingToken);
@@ -51,7 +58,6 @@ public sealed class RabbitMqOutboxDispatcher : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "RabbitMQ outbox dispatcher failed. Retrying.");
                 await Task.Delay(TimeSpan.FromSeconds(_options.RetryDelaySeconds), stoppingToken);
             }
         }
@@ -60,9 +66,9 @@ public sealed class RabbitMqOutboxDispatcher : BackgroundService
     private async Task<bool> PublishBatchAsync(IChannel channel, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
 
-        var messages = await db.OutboxMessages
+        var messages = await db.Set<OutboxMessage>()
             .Where(x => x.PublishedAtUtc == null)
             .OrderBy(x => x.OccurredAtUtc)
             .Take(_options.OutboxBatchSize)
@@ -70,6 +76,7 @@ public sealed class RabbitMqOutboxDispatcher : BackgroundService
 
         if (messages.Count == 0)
         {
+            _logger.LogDebug("No unpublished messages in outbox");
             return false;
         }
 

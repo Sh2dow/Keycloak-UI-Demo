@@ -23,8 +23,8 @@ public class UsersController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var users = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserDto>>(ct);
-        return Ok(users);
+        var users = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserWithOrdersDto>>(ct);
+        return Ok(users?.Select(u => u.ToDto()).ToList());
     }
 
     [HttpGet("{id:guid}")]
@@ -36,8 +36,8 @@ public class UsersController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var user = await response.Content.ReadFromJsonAsync<UserDto>(ct);
-        return user == null ? NotFound() : Ok(user);
+        var user = await response.Content.ReadFromJsonAsync<UserWithOrdersDto>(ct);
+        return user == null ? NotFound() : Ok(user.ToDto());
     }
 
     [HttpPost]
@@ -49,8 +49,8 @@ public class UsersController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var user = await response.Content.ReadFromJsonAsync<UserDto>(ct);
-        return user == null ? NotFound() : CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
+        var user = await response.Content.ReadFromJsonAsync<UserWithOrdersDto>(ct);
+        return user == null ? NotFound() : CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user.ToDto());
     }
 
     [HttpPut("{id:guid}")]
@@ -62,8 +62,8 @@ public class UsersController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var user = await response.Content.ReadFromJsonAsync<UserDto>(ct);
-        return Ok(user);
+        var user = await response.Content.ReadFromJsonAsync<UserWithOrdersDto>(ct);
+        return user == null ? NotFound() : Ok(user.ToDto());
     }
 
     [HttpDelete("{id:guid}")]
@@ -84,7 +84,31 @@ public sealed record UserDto(
     string Subject,
     string Username,
     string? Email,
-    DateTime CreatedAtUtc
+    DateTime CreatedAtUtc,
+    IReadOnlyList<OrderItemDto> Orders
+);
+
+public sealed record UserWithOrdersDto(
+    Guid Id,
+    string Subject,
+    string Username,
+    string? Email,
+    DateTime CreatedAtUtc,
+    IReadOnlyList<OrderItemDto> Orders
+)
+{
+    public UserDto ToDto() => new(Id, Subject, Username, Email, CreatedAtUtc, Orders);
+}
+
+public sealed record OrderItemDto(
+    Guid Id,
+    string OrderType,
+    decimal TotalAmount,
+    string Status,
+    DateTime CreatedAtUtc,
+    string? DownloadUrl,
+    string? ShippingAddress,
+    string? TrackingNumber
 );
 
 public sealed record CreateUserRequest(
