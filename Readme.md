@@ -1,201 +1,229 @@
-* **Keycloak** (Docker)
-* **PostgreSQL** for your app (Docker)
-* **ASP.NET Core 10 Web API + EF Core (Npgsql)**
-* **MediatR**
-* **RabbitMQ**
-* **React 18 + Vite + Bun** using **react-oidc-context**
-* **JWT auth + role-based authorization** from Keycloak
-* **Per-user data** in EF Core using Keycloak `sub` claim
+# Keycloak UI Demo
+
+A microservices demo application showcasing modern .NET and React architecture with Keycloak authentication.
+
+## Tech Stack
+
+* **Keycloak** - Identity & Access Management (Docker)
+* **PostgreSQL** - Separate databases per service (Docker/RDS)
+* **ASP.NET Core 10** - Web API + EF Core (Npgsql)
+* **.NET Aspire** - Service orchestration for local development
+* **MediatR** - CQRS pattern implementation
+* **RabbitMQ** - Async messaging with Outbox pattern
+* **React 18 + Vite + Bun** - Frontend with Refine & Mantine UI
+* **Keycloak Auth** - JWT auth + role-based authorization
 
 ---
 
-## Initial project structure (already changed)
+## Project Structure
 
 ```text
-myapp/
-├─ docker-compose.yml
+Keycloak-UI-Demo/
+├─ docker-compose.yml             # Production-like deployment
+├─ Readme.md
+├─ Docs/                          # Architecture & design docs
+│  ├─ Changelog.md
+│  ├─ 1. Startup.md
+│  ├─ 2. MediatR.md
+│  ├─ 3. Mapperly.md
+│  ├─ 5. Microservices.md
+│  ├─ 6. Saga pattern.md
+│  └─ ...
 ├─ backend/
-│  ├─ backend.csproj
-│  ├─ appsettings.json
-│  ├─ Program.cs
-│  ├─ Data/
-│  │  └─ AppDbContext.cs
-│  ├─ Models/
-│  │  └─ TodoItem.cs
-│  └─ Controllers/
-│     └─ TodoController.cs
-└─ frontend/
-   ├─ package.json
-   ├─ vite.config.ts
-   ├─ index.html
-   └─ src/
-      ├─ main.tsx
-      ├─ authConfig.ts
-      ├─ api.ts
-      └─ App.tsx
+│  ├─ backend.slnx                # Solution file
+│  ├─ backend.AppHost/            # .NET Aspire orchestrator
+│  ├─ backend.ServiceDefaults/    # Shared Aspire defaults
+│  ├─ backend.Api/                # Main API (Tasks legacy)
+│  ├─ backend.Auth.Api/           # Auth microservice (port 5001)
+│  ├─ backend.Users.Api/          # Users microservice (port 5005)
+│  ├─ backend.Tasks.Api/          # Tasks microservice (port 5002)
+│  ├─ backend.Tasks/              # Tasks business logic
+│  ├─ backend.Orders.Api/         # Orders microservice (port 5003)
+│  ├─ backend.Orders/             # Orders business logic + Saga
+│  ├─ backend.Payments.Api/       # Payments microservice (port 5004)
+│  ├─ backend.Payments/           # Payments business logic
+│  ├─ backend.Users/              # Users business logic
+│  ├─ backend.Domain/             # Shared domain models + EF migrations
+│  ├─ backend.Infrastructure/     # Shared infrastructure (MediatR, etc.)
+│  ├─ backend.Shared/             # Shared configuration & utilities
+│  ├─ backend.Tests/              # Unit & integration tests
+│  └─ scripts/                    # Migration & startup scripts
+├─ frontend/
+│  ├─ package.json                # Bun package manager
+│  ├─ vite.config.ts
+│  ├─ Dockerfile
+│  ├─ nginx.conf
+│  └─ src/
+│     ├─ main.tsx
+│     ├─ App.tsx
+│     ├─ providers/
+│     │  ├─ keycloakAuthProvider.ts
+│     │  └─ keycloakDataProvider.ts
+│     └─ pages/
+│        ├─ tasks/
+│        ├─ orders/
+│        ├─ users/
+│        ├─ clients/
+│        ├─ groups/
+│        └─ roles/
+├─ keycloak/                      # Custom Keycloak config
+├─ infra/                         # Infrastructure (Caddy, Nginx SSL)
+├─ scripts/                       # Deployment & DB scripts
+└─ memory/                        # Dev session notes
 ```
 
 ---
 
-# 1) Docker: Keycloak + Postgres (Keycloak DB) + Postgres (App DB)
+## Architecture
 
-See [docker-compose.yml](docker-compose.yml) for the full configuration.
+### Microservices
 
-Run:
+| Service | Port | Database | Description |
+|---------|------|----------|-------------|
+| backend.Api | 5000 | keycloak_demo_app | Main API gateway |
+| backend.Auth.Api | 5001 | keycloak_demo_auth | Authentication service |
+| backend.Tasks.Api | 5002 | keycloak_demo_tasks | Task management |
+| backend.Orders.Api | 5003 | keycloak_demo_orders | Order processing + Saga |
+| backend.Payments.Api | 5004 | keycloak_demo_payments | Payment processing |
+| backend.Users.Api | 5005 | keycloak_demo_auth | User management |
+
+### Key Patterns
+
+- **CQRS** - Command/Query separation via MediatR
+- **Outbox Pattern** - Reliable messaging with RabbitMQ
+- **Saga Pattern** - Distributed transaction management for Orders→Payments flow
+- **Domain Events** - OrderStatusChanged, PaymentCompleted, etc.
+
+---
+
+## Quick Start
+
+### Option 1: Docker Compose (Production-like)
 
 ```bash
+# Build and run migrations
 docker compose build backend_migrations
 docker compose run --rm backend_migrations
+
+# Start all services
 docker compose up --build
 ```
 
-Keycloak: `http://localhost:8080` (admin/admin)
-App DB: `localhost:5432` (app/app, db=appdb)
+**Services:**
+- Frontend: `http://localhost:5173`
+- Keycloak: `http://localhost:8080` (admin/admin)
+- Backend API: `http://localhost:5000`
+- RabbitMQ: `http://localhost:15672` (guest/guest)
 
----
-
-# 2) Keycloak configuration (manual, 3 minutes)
-
-In Keycloak Admin UI:
-
-### Realm
-
-* Create realm: `myrealm`
-
-### Client (frontend)
-
-* Create client: `react-client`
-* Client type: **Public**
-* Root URL: `http://localhost:5173`
-* Valid redirect URIs: `http://localhost:5173/*`
-* Web origins: `http://localhost:5173`
-* Standard flow: **ON**
-* PKCE: **ON**
-
-### Client (backend API)
-
-* Create client: `backend-api`
-* Client type: **Confidential**
-* Service accounts: optional (only if you need client-credentials later)
-* This is mostly for clean separation; the API will validate tokens by issuer.
-
-### Realm role
-
-* Create realm role: `admin`
-
-### User
-
-* Create user `test`
-* Set password (temporary OFF)
-* Assign role `admin` (optional; only needed to test admin endpoint)
-
----
-
-# 3) Backend: ASP.NET Core 10 + EF Core + JWT validation (Keycloak)
-
-## For local EF Core migration + run
-
-From `backend/`:
-
-```bash
-dotnet ef migrations add Initial
-dotnet ef database update
-dotnet run
-```
-
-Backend should be on `http://localhost:5000` or `https://localhost:7xxx` depending on your environment (Swagger will show it).
-
-If you want it fixed to `http://localhost:5001`, tell me and I’ll give you the exact `launchSettings.json`.
-
----
-
-# 4) Frontend: React + Vite + Bun + react-oidc-context
-
-Create:
-
-```bash
-cd ..
-bun create vite frontend --template react-ts
-cd frontend
-bun install
-bun add react-oidc-context axios
-```
-
-## frontend/vite.config.ts (dev proxy to backend)
-
-```ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    proxy: {
-      "/api": "http://localhost:5000"
-    }
-  }
-});
-```
-
-## frontend/src/authConfig.ts
-
-```ts
-export const oidcConfig = {
-  authority: "http://localhost:8080/realms/myrealm",
-  client_id: "react-client",
-  redirect_uri: "http://localhost:5173",
-  response_type: "code",
-  scope: "openid profile email",
-};
-```
-
-Run frontend:
-
-```bash
-bun run dev
-```
-
----
-
-# 5) Run order (dev)
-
-1. Infrastructure:
-
-```bash
-docker compose up -d
-```
-
-2. Backend:
+### Option 2: .NET Aspire (Local Development)
 
 ```bash
 cd backend
-dotnet ef database update
-dotnet run
+dotnet run --project backend.AppHost
 ```
 
-3. Frontend:
+This starts all microservices with the Aspire dashboard.
+
+### Option 3: Individual Services
 
 ```bash
+# Start infrastructure
+docker compose up -d keycloak rabbitmq
+
+# Run migrations
+cd backend
+dotnet ef database update --project backend.Domain
+
+# Start backend
+dotnet run --project backend.Api
+
+# Start frontend
 cd ../frontend
+bun install
 bun run dev
 ```
 
-Then go: `http://localhost:5173`
+---
+
+## Keycloak Configuration
+
+In Keycloak Admin UI (`http://localhost:8080`):
+
+### 1. Create Realm
+- Name: `myrealm`
+
+### 2. Create Client (Frontend)
+- Client ID: `react-client`
+- Client type: **Public**
+- Root URL: `http://localhost:5173`
+- Valid redirect URIs: `http://localhost:5173/*`
+- Web origins: `http://localhost:5173`
+- Standard flow: **ON**
+- PKCE: **ON**
+
+### 3. Create Role
+- Realm role: `admin`
+
+### 4. Create User
+- Username: `test`
+- Password: (set, temporary OFF)
+- Assign role: `admin`
 
 ---
 
-## Notes that matter in real projects
+## Environment Variables
 
-* **Refresh tokens**: for SPAs, refresh tokens are usually issued via “offline_access” scope + Keycloak client settings. If you want silent renew/refresh configured properly, tell me your Keycloak version settings screen you see and I’ll give the exact toggles. (Keycloak UI changes frequently.)
-* **Audience validation**: I disabled it (`ValidateAudience = false`) because Keycloak often won’t set your API audience unless you configure “Audience” mappers. I can also show the *strict* setup (recommended for production).
-* **Role mapping**: I mapped **realm roles** to ASP.NET roles. If you prefer **client roles** (better in many orgs), I’ll adjust the mapping.
+Docker Compose uses these environment variables (see `.env` or set directly):
+
+```env
+# Database
+RDS_ENDPOINT=localhost
+APP_DB_USERNAME=app
+APP_DB_PASSWORD=app
+AUTH_DB_USERNAME=auth
+AUTH_DB_PASSWORD=auth
+
+# Keycloak
+KEYCLOAK_ADMIN_PASSWORD=admin
+KEYCLOAK_REALM_URL=http://localhost:8080/realms/myrealm
+```
 
 ---
 
+## Frontend Stack
 
-  Run deploy.sh locally from your machine, not on the EC2 box. It uses your local AWS credentials to:
+- **React 18** + TypeScript
+- **Vite 7** - Build tool
+- **Bun** - Package manager & runtime
+- **Refine** - Admin panel framework
+- **Mantine** - UI components
+- **TanStack Query** - Data fetching
+- **oidc-client-ts** - Keycloak authentication
 
-  - create/update IAM role policies
-  - create/update RDS
-  - launch/update EC2 bootstrap behavior
+---
+
+## Development Notes
+
+### Running Migrations
+
+```bash
+# All migrations
+dotnet ef database update --project backend.Domain --startup-project backend.Api
+
+# Specific context
+dotnet ef database update --context OrdersDbContext --project backend.Domain
+```
+
+### Testing
+
+```bash
+cd backend/backend.Tests
+dotnet test
+```
+
+### AWS Deployment
+
+Run `scripts/deploy.sh` locally (uses AWS credentials):
+- Creates/updates IAM role policies
+- Provisions RDS
+- Configures EC2 bootstrap
