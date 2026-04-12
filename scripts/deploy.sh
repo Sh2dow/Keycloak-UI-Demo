@@ -379,7 +379,21 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt update -y
-apt install -y docker.io docker-compose git postgresql-client awscli jq
+apt remove -y docker docker-engine docker.io containerd runc || true
+apt install -y ca-certificates curl gnupg git postgresql-client awscli jq
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  \$(. /etc/os-release && echo \$VERSION_CODENAME) stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt update -y
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 systemctl enable docker
 systemctl start docker
@@ -388,6 +402,7 @@ usermod -aG docker ubuntu
 
 docker system prune -af || true
 docker volume prune -f || true
+docker compose version
 
 TOKEN=\$(curl -fsX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 INSTANCE_PUBLIC_IP=\$(curl -fs -H "X-aws-ec2-metadata-token: \$TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)

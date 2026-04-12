@@ -320,10 +320,8 @@ main() {
 
   if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD=(docker compose)
-  elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
   else
-    echo "Missing Docker Compose. Install 'docker compose' or 'docker-compose'." >&2
+    echo "Missing Docker Compose v2 plugin. Install Docker from the official Docker repository so 'docker compose' is available." >&2
     exit 1
   fi
 
