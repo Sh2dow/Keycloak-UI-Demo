@@ -1,7 +1,6 @@
 using backend.Domain.Data;
 using backend.Infrastructure.Application.Users;
 using backend.Infrastructure.Infrastructure.Messaging;
-using backend.Infrastructure.Infrastructure.Messaging;
 using backend.Payments.Infrastructure.Payments;
 using backend.ServiceDefaults;
 using backend.Shared.Application.Messaging;
@@ -19,6 +18,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 builder.Services.Configure<backend.Shared.Configuration.RabbitMqOptions>(builder.Configuration.GetSection(backend.Shared.Configuration.RabbitMqOptions.SectionName));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
@@ -110,8 +110,11 @@ static async Task<bool> DatabaseExistsAsync(string connectionString)
     }
 }
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
 
 app.MapControllers();
 app.MapDefaultEndpoints();

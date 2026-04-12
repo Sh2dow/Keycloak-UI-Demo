@@ -1,20 +1,19 @@
 using System.Security.Claims;
+using backend.Api;
 using backend.Api.Application.Exceptions;
 using backend.Api.Controllers;
-using backend.Domain.Data;
 using backend.Infrastructure.Application.Behaviors;
 using backend.Infrastructure.Application.Security;
 using backend.Infrastructure.Application.Users;
 using backend.Infrastructure.Infrastructure.Messaging;
 using backend.ServiceDefaults;
-using backend.Shared.Application.Messaging;
 using backend.Shared.Application.Users;
 using backend.Shared.Configuration;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RabbitMqOptions = backend.Shared.Configuration.RabbitMqOptions;
 
@@ -49,22 +48,31 @@ builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection(Key
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.Configure<PaymentsOptions>(builder.Configuration.GetSection(PaymentsOptions.SectionName));
 builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
-builder.Services.AddHttpClient<OrdersController>();
-builder.Services.AddHttpClient<PaymentsController>();
-builder.Services.AddHttpClient<UsersController>();
-builder.Services.AddHttpClient<TasksController>();
-builder.Services.AddHttpClient("Orders");
-builder.Services.AddHttpClient("Payments");
+builder.Services.Configure<DownstreamServicesOptions>(builder.Configuration.GetSection(DownstreamServicesOptions.SectionName));
+builder.Services.AddHttpClient("Orders", (serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<DownstreamServicesOptions>>().Value;
+    ConfigureDownstreamClient(client, options.OrdersBaseUrl, $"{DownstreamServicesOptions.SectionName}:OrdersBaseUrl");
+});
+builder.Services.AddHttpClient("Payments", (serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<DownstreamServicesOptions>>().Value;
+    ConfigureDownstreamClient(client, options.PaymentsBaseUrl, $"{DownstreamServicesOptions.SectionName}:PaymentsBaseUrl");
+});
+builder.Services.AddHttpClient("Users", (serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<DownstreamServicesOptions>>().Value;
+    ConfigureDownstreamClient(client, options.UsersBaseUrl, $"{DownstreamServicesOptions.SectionName}:UsersBaseUrl");
+});
+builder.Services.AddHttpClient("Tasks", (serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<DownstreamServicesOptions>>().Value;
+    ConfigureDownstreamClient(client, options.TasksBaseUrl, $"{DownstreamServicesOptions.SectionName}:TasksBaseUrl");
+});
 builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>
 {
-    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthServiceOptions>>().Value;
-    if (string.IsNullOrWhiteSpace(options.BaseUrl))
-    {
-        throw new InvalidOperationException(
-            "AuthService:BaseUrl is missing. Configure it in appsettings.json or provide it via environment variables.");
-    }
-
-    client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+    var options = serviceProvider.GetRequiredService<IOptions<AuthServiceOptions>>().Value;
+    ConfigureDownstreamClient(client, options.BaseUrl, $"{AuthServiceOptions.SectionName}:BaseUrl");
 });
 
 // Register integration event outbox - removed since Users handlers are no longer registered in main API
@@ -175,8 +183,6 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Get configuration values from strongly-typed options
-var dbOptions = app.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>();
 var rabbitMqOptions = app.Configuration.GetSection(RabbitMqOptions.SectionName).Get<RabbitMqOptions>();
 
 string FormatRabbitMqTarget(string? uriString)
@@ -194,6 +200,18 @@ string FormatRabbitMqTarget(string? uriString)
     return $"{uri.Host}:{uri.Port}";
 }
 
+static void ConfigureDownstreamClient(HttpClient client, string? baseUrl, string settingName)
+{
+    if (string.IsNullOrWhiteSpace(baseUrl))
+    {
+        throw new InvalidOperationException(
+            $"{settingName} is missing. Configure it in appsettings.json or provide it via environment variables.");
+    }
+
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}
+
 app.Logger.LogInformation(
     "Startup config. Environment={Environment}; RabbitMq={RabbitMq}; KeycloakAuthority={KeycloakAuthority}; KeycloakMetadata={KeycloakMetadata}",
     app.Environment.EnvironmentName,
@@ -204,14 +222,14 @@ app.Logger.LogInformation(
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseCors("dev");
-
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
 
 app.UseMiddleware<ProblemDetailsExceptionMiddleware>();
+app.UseRouting();
+app.UseCors("dev");
 app.UseAuthentication();
 app.UseAuthorization();
 

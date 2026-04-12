@@ -7,17 +7,39 @@ namespace backend.Api.Controllers;
 [Route("api/users")]
 public class UsersController : ControllerBase
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public UsersController(HttpClient httpClient)
+    public UsersController(IHttpClientFactory httpClientFactory)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
+    }
+
+    private string WithQueryString(string path) =>
+        string.IsNullOrEmpty(Request.QueryString.Value)
+            ? path
+            : path + Request.QueryString.Value;
+
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(method, WithQueryString(path));
+
+        if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            request.Headers.TryAddWithoutValidation("Authorization", authHeader.ToString());
+        }
+
+        if (body != null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await _httpClientFactory.CreateClient("Users").SendAsync(request, ct);
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetUsers(CancellationToken ct)
     {
-        var response = await _httpClient.GetAsync("http://localhost:5005/api/users", ct);
+        using var response = await SendAsync(HttpMethod.Get, "api/users", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -30,7 +52,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
     {
-        var response = await _httpClient.GetAsync($"http://localhost:5005/api/users/{id}", ct);
+        using var response = await SendAsync(HttpMethod.Get, $"api/users/{id}", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -43,7 +65,7 @@ public class UsersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<UserDto>> CreateUser(CreateUserRequest request, CancellationToken ct)
     {
-        var response = await _httpClient.PostAsJsonAsync("http://localhost:5005/api/users", request, ct);
+        using var response = await SendAsync(HttpMethod.Post, "api/users", request, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -56,7 +78,7 @@ public class UsersController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<UserDto>> UpdateUser(Guid id, UpdateUserRequest request, CancellationToken ct)
     {
-        var response = await _httpClient.PutAsJsonAsync($"http://localhost:5005/api/users/{id}", request, ct);
+        using var response = await SendAsync(HttpMethod.Put, $"api/users/{id}", request, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -69,7 +91,7 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
     {
-        var response = await _httpClient.DeleteAsync($"http://localhost:5005/api/users/{id}", ct);
+        using var response = await SendAsync(HttpMethod.Delete, $"api/users/{id}", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);

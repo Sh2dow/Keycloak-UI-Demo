@@ -25,6 +25,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<CreateDigitalOrderCommandValidator>();
 builder.Services.AddScoped<CreatePhysicalOrderCommandValidator>();
@@ -109,12 +110,19 @@ builder.Services.AddDbContext<PaymentsDbContext>(options =>
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddDbContextFactory<OrdersDbContext>();
+builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
 
-// Use HTTP-based user directory to call Auth.Api instead of direct DB access
-// Using direct URL to Auth.Api for local development
-builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>(client =>
+builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>
 {
-    client.BaseAddress = new Uri("http://127.0.0.1:5001");
+    var options = serviceProvider.GetRequiredService<IOptions<AuthServiceOptions>>().Value;
+    if (string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        throw new InvalidOperationException(
+            $"{AuthServiceOptions.SectionName}:BaseUrl is missing. Configure it in appsettings.json or provide it via environment variables.");
+    }
+
+    client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
 });
 
 builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
@@ -140,8 +148,13 @@ builder.Services.AddScoped<IIntegrationEventOutbox, IntegrationEventOutbox<Order
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapDefaultEndpoints();

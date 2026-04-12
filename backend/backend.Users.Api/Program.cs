@@ -16,6 +16,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(backend.Users.Requests.Users.CreateUserCommand).Assembly));
 
 // Configure database connections - use dedicated connection strings per service
@@ -56,8 +57,11 @@ if (builder.Configuration.GetValue<bool>("RabbitMq:Enabled", true))
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
 
 app.MapControllers();
 app.MapDefaultEndpoints();

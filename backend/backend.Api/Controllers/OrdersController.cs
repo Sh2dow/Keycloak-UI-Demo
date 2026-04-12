@@ -14,10 +14,14 @@ public class OrdersController : ControllerBase
         _httpClientFactory = httpClientFactory;
     }
 
-    private async Task<HttpResponseMessage> ForwardRequestAsync(HttpMethod method, string url, object? body, CancellationToken ct)
+    private string WithQueryString(string path) =>
+        string.IsNullOrEmpty(Request.QueryString.Value)
+            ? path
+            : path + Request.QueryString.Value;
+
+    private async Task<HttpResponseMessage> ForwardRequestAsync(HttpMethod method, string path, object? body, CancellationToken ct)
     {
-        var client = _httpClientFactory.CreateClient("Orders");
-        var request = new HttpRequestMessage(method, url);
+        using var request = new HttpRequestMessage(method, WithQueryString(path));
         
         if (Request.Headers.TryGetValue("Authorization", out var authHeader))
         {
@@ -29,13 +33,13 @@ public class OrdersController : ControllerBase
             request.Content = JsonContent.Create(body);
         }
         
-        return await client.SendAsync(request, ct);
+        return await _httpClientFactory.CreateClient("Orders").SendAsync(request, ct);
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<OrderDto>>> GetOrders(CancellationToken ct)
     {
-        var response = await ForwardRequestAsync(HttpMethod.Get, "http://localhost:5003/api/orders", null, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Get, "api/orders", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -49,7 +53,7 @@ public class OrdersController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<OrderDto>> GetOrderById(Guid id, CancellationToken ct)
     {
-        var response = await ForwardRequestAsync(HttpMethod.Get, $"http://localhost:5003/api/orders/{id}", null, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Get, $"api/orders/{id}", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -62,7 +66,7 @@ public class OrdersController : ControllerBase
     [HttpGet("{id:guid}/workflow")]
     public async Task<IActionResult> GetOrderWorkflow(Guid id, CancellationToken ct)
     {
-        var response = await ForwardRequestAsync(HttpMethod.Get, $"http://localhost:5003/api/orders/{id}/workflow", null, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Get, $"api/orders/{id}/workflow", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -76,7 +80,7 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<OrderDto>> CreateOrder(CreateOrderRequest request, CancellationToken ct)
     {
         var createRequest = new CreateOrderViewRequest(request.OrderType, request.TotalAmount, request.DownloadUrl, request.ShippingAddress, request.TrackingNumber);
-        var response = await ForwardRequestAsync(HttpMethod.Post, "http://localhost:5003/api/orders", createRequest, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Post, "api/orders", createRequest, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -89,7 +93,7 @@ public class OrdersController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<OrderDto>> UpdateOrder(Guid id, UpdateOrderRequest request, CancellationToken ct)
     {
-        var response = await ForwardRequestAsync(HttpMethod.Put, $"http://localhost:5003/api/orders/{id}", request, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Put, $"api/orders/{id}", request, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -102,7 +106,7 @@ public class OrdersController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteOrder(Guid id, CancellationToken ct)
     {
-        var response = await ForwardRequestAsync(HttpMethod.Delete, $"http://localhost:5003/api/orders/{id}", null, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Delete, $"api/orders/{id}", null, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);

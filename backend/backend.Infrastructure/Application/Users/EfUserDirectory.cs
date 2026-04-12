@@ -38,12 +38,16 @@ public sealed class EfUserDirectory : IUserDirectory
 
     public Task<AppUser?> FindByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return _db.AppUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        return _db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
     public Task<AppUser?> FindBySubjectAsync(string subject, CancellationToken ct = default)
     {
-        return _db.AppUsers.FirstOrDefaultAsync(x => x.Subject == subject, ct);
+        return _db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Subject == subject, ct);
     }
 
     public async Task<AppUser> EnsureAsync(string subject, string? preferredUsername, string? email, CancellationToken ct = default)

@@ -451,3 +451,68 @@ For failed messages after retries.
 | High load         | Queue                |
 | Fast reads        | Cache                |
 | Data consistency  | Eventual consistency |
+
+
+
+---
+
+## Section 6 — Dependency Injection & Hosted Services
+
+### 1. Avoid Captive Dependencies
+
+**Problem:** A longer-lived service captures a shorter-lived one.
+
+The most common case is a Singleton holding a Scoped `DbContext`.
+
+**Rule:** Never inject Scoped services directly into Singleton services. Create a scope per unit of work and resolve Scoped dependencies inside that scope.
+
+```csharp
+public sealed class Worker
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public Worker(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
+
+    public async Task ProcessAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        await db.SaveChangesAsync(ct);
+    }
+}
+```
+
+---
+
+### 2. IHostedService and BackgroundService Are Singletons
+
+**Problem:** Hosted services live for the entire app lifetime, so injecting Scoped services directly creates invalid lifetimes and unstable behavior.
+
+**Rule:** In `IHostedService` and `BackgroundService`, always use `IServiceScopeFactory.CreateScope()` or `CreateAsyncScope()` for each unit of work.
+
+```csharp
+public sealed class QueueWorker : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public QueueWorker(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<IMessageHandler>();
+
+            await handler.ProcessAsync(stoppingToken);
+        }
+    }
+}
+```

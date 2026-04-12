@@ -31,6 +31,7 @@ public sealed class GetUsersHandler : IRequestHandler<GetUsersQuery, IReadOnlyLi
 
         var userIds = users.Select(u => u.Id).ToList();
         var orders = await _ordersDb.Orders
+            .AsNoTracking()
             .Where(o => userIds.Contains(o.UserId))
             .ToListAsync(ct);
 

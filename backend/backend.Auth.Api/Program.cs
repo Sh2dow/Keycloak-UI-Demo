@@ -11,6 +11,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 // Configure strongly-typed options from configuration
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
@@ -31,8 +32,11 @@ builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
 
 app.MapControllers();
 app.MapDefaultEndpoints();

@@ -19,6 +19,7 @@ builder.AddServiceDefaults();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 var keycloakAuthority = builder.Configuration["Keycloak:Authority"];
 if (string.IsNullOrWhiteSpace(keycloakAuthority))
@@ -166,8 +167,12 @@ static async Task<bool> DatabaseExistsAsync(string connectionString)
     }
 }
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapDefaultEndpoints();
