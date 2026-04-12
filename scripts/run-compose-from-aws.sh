@@ -233,10 +233,10 @@ build_database_urls() {
   append_or_replace_env "RDS_TASKS_DB" "$tasks_db"
   append_or_replace_env "RDS_ORDERS_DB" "$orders_db"
   append_or_replace_env "RDS_PAYMENTS_DB" "$payments_db"
-  append_or_replace_env "AUTH_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${RDS_AUTH_DB};Username=${AUTH_DB_USERNAME};Password=${AUTH_DB_PASSWORD};SSL Mode=Require"
-  append_or_replace_env "TASKS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${tasks_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require"
-  append_or_replace_env "ORDERS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${orders_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require"
-  append_or_replace_env "PAYMENTS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${payments_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require"
+  append_or_replace_env "AUTH_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${RDS_AUTH_DB};Username=${AUTH_DB_USERNAME};Password=${AUTH_DB_PASSWORD};SSLMode=Require"
+  append_or_replace_env "TASKS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${tasks_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSLMode=Require"
+  append_or_replace_env "ORDERS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${orders_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSLMode=Require"
+  append_or_replace_env "PAYMENTS_DB_CONNECTION_STRING" "Host=${RDS_ENDPOINT};Port=${port};Database=${payments_db};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSLMode=Require"
 }
 
 configure_public_urls() {
