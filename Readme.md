@@ -80,7 +80,7 @@ Keycloak-UI-Demo/
 
 | Service | Port | Database | Description |
 |---------|------|----------|-------------|
-| backend.Api | 5000 | keycloak_demo_app | Main API gateway |
+| backend.Api | 5000 | n/a | Main API gateway |
 | backend.Auth.Api | 5001 | keycloak_demo_auth | Authentication service |
 | backend.Tasks.Api | 5002 | keycloak_demo_tasks | Task management |
 | backend.Orders.Api | 5003 | keycloak_demo_orders | Order processing + Saga |
@@ -112,7 +112,12 @@ docker compose up --build
 **Services:**
 - Frontend: `http://localhost:5173`
 - Keycloak: `http://localhost:8080` (admin/admin)
-- Backend API: `http://localhost:5000`
+- API gateway: `http://localhost:5000`
+- Auth API: `http://localhost:5001`
+- Tasks API: `http://localhost:5002`
+- Orders API: `http://localhost:5003`
+- Payments API: `http://localhost:5004`
+- Users API: `http://localhost:5005`
 - RabbitMQ: `http://localhost:15672` (guest/guest)
 
 ### Option 2: .NET Aspire (Local Development)
@@ -225,5 +230,8 @@ dotnet test
 
 Run `scripts/deploy.sh` locally (uses AWS credentials):
 - Creates/updates IAM role policies
-- Provisions RDS
-- Configures EC2 bootstrap
+- Provisions EC2 and RDS
+- Creates the auth/tasks/orders/payments databases on the target RDS instance
+- Starts the Docker Compose stack on EC2, including frontend, gateway, Keycloak, RabbitMQ, and the backend microservices
+
+The `backend.AppHost` `aws` launch profile is not a deployment mechanism. It only starts the AppHost locally with AWS-oriented configuration.

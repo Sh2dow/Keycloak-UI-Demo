@@ -26,6 +26,20 @@
         "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "http://localhost:18097",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20016"
       }
+    },
+    "aws": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://0.0.0.0:15127",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Aws",
+        "DOTNET_ENVIRONMENT": "Aws",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://127.0.0.1:19179",
+        "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "http://127.0.0.1:18098",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://127.0.0.1:20017"
+      }
     }
   }
 }

@@ -28,7 +28,11 @@ if (string.IsNullOrWhiteSpace(keycloakAuthority))
 }
 
 var normalizedAuthority = keycloakAuthority.TrimEnd('/');
-var metadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
+var metadataAddress = builder.Configuration["Keycloak:MetadataAddress"];
+if (string.IsNullOrWhiteSpace(metadataAddress))
+{
+    metadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
+}
 
 // Add authentication with Keycloak
 builder.Services.AddAuthentication("Bearer")

@@ -17,7 +17,9 @@ APP_DB_USERNAME_PARAMETER_NAME="/keycloak-demo/rds/app-username"
 APP_DB_PASSWORD_PARAMETER_NAME="/keycloak-demo/rds/app-password"
 KEYCLOAK_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-keycloak"
 AUTH_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-auth"
-APP_DB_PARAMETER_NAME="/keycloak-demo/rds/db-name-app"
+TASKS_DB_NAME="${TASKS_DB_NAME:-keycloak_demo_tasks}"
+ORDERS_DB_NAME="${ORDERS_DB_NAME:-keycloak_demo_orders}"
+PAYMENTS_DB_NAME="${PAYMENTS_DB_NAME:-keycloak_demo_payments}"
 KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME="/keycloak-demo/keycloak/admin-password"
 ROLE_NAME="keycloak-demo-ec2-role"
 INSTANCE_PROFILE_NAME="keycloak-demo-ec2-profile"
@@ -109,7 +111,6 @@ APP_DB_USERNAME=$(get_required_parameter "$APP_DB_USERNAME_PARAMETER_NAME" "fals
 APP_DB_PASSWORD=$(get_required_parameter "$APP_DB_PASSWORD_PARAMETER_NAME" "true")
 KEYCLOAK_DB_NAME=$(get_required_parameter "$KEYCLOAK_DB_PARAMETER_NAME" "false")
 AUTH_DB_NAME=$(get_required_parameter "$AUTH_DB_PARAMETER_NAME" "false")
-APP_DB_NAME=$(get_required_parameter "$APP_DB_PARAMETER_NAME" "false")
 KEYCLOAK_ADMIN_PASSWORD=$(get_required_parameter "$KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME" "true")
 echo "Detecting default VPC..."
 
@@ -252,7 +253,6 @@ cat > ssm-parameter-policy.json <<JSON
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_PASSWORD_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${AUTH_DB_PARAMETER_NAME}",
-        "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${APP_DB_PARAMETER_NAME}",
         "arn:aws:ssm:$REGION:$ACCOUNT_ID:parameter${KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME}"
       ]
     }
@@ -401,7 +401,9 @@ APP_DB_USERNAME=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_USER
 APP_DB_PASSWORD=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_PASSWORD_PARAMETER_NAME" --with-decryption --query "Parameter.Value" --output text)
 KEYCLOAK_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$KEYCLOAK_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
 AUTH_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$AUTH_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
-APP_DB_NAME=\$(aws ssm get-parameter --region "$REGION" --name "$APP_DB_PARAMETER_NAME" --query "Parameter.Value" --output text)
+TASKS_DB_NAME="$TASKS_DB_NAME"
+ORDERS_DB_NAME="$ORDERS_DB_NAME"
+PAYMENTS_DB_NAME="$PAYMENTS_DB_NAME"
 
 ensure_role_and_database() {
   local db_name="\$1"
@@ -430,7 +432,9 @@ ensure_role_and_database() {
 
 ensure_role_and_database "\$KEYCLOAK_DB_NAME" "\$KEYCLOAK_DB_USERNAME" "\$KEYCLOAK_DB_PASSWORD"
 ensure_role_and_database "\$AUTH_DB_NAME" "\$AUTH_DB_USERNAME" "\$AUTH_DB_PASSWORD"
-ensure_role_and_database "\$APP_DB_NAME" "\$APP_DB_USERNAME" "\$APP_DB_PASSWORD"
+ensure_role_and_database "\$TASKS_DB_NAME" "\$APP_DB_USERNAME" "\$APP_DB_PASSWORD"
+ensure_role_and_database "\$ORDERS_DB_NAME" "\$APP_DB_USERNAME" "\$APP_DB_PASSWORD"
+ensure_role_and_database "\$PAYMENTS_DB_NAME" "\$APP_DB_USERNAME" "\$APP_DB_PASSWORD"
 
 sudo -u ubuntu bash <<INNER
 set -euo pipefail
@@ -511,11 +515,13 @@ echo "SSM Keycloak DB username parameter: $KEYCLOAK_DB_USERNAME_PARAMETER_NAME"
 echo "SSM Keycloak DB password parameter: $KEYCLOAK_DB_PASSWORD_PARAMETER_NAME"
 echo "SSM auth DB username parameter: $AUTH_DB_USERNAME_PARAMETER_NAME"
 echo "SSM auth DB password parameter: $AUTH_DB_PASSWORD_PARAMETER_NAME"
-echo "SSM app DB username parameter: $APP_DB_USERNAME_PARAMETER_NAME"
-echo "SSM app DB password parameter: $APP_DB_PASSWORD_PARAMETER_NAME"
+echo "SSM service DB username parameter: $APP_DB_USERNAME_PARAMETER_NAME"
+echo "SSM service DB password parameter: $APP_DB_PASSWORD_PARAMETER_NAME"
 echo "SSM Keycloak DB parameter: $KEYCLOAK_DB_PARAMETER_NAME"
 echo "SSM auth DB parameter: $AUTH_DB_PARAMETER_NAME"
-echo "SSM app DB parameter: $APP_DB_PARAMETER_NAME"
+echo "Tasks DB name: $TASKS_DB_NAME"
+echo "Orders DB name: $ORDERS_DB_NAME"
+echo "Payments DB name: $PAYMENTS_DB_NAME"
 echo "SSM Keycloak admin password parameter: $KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME"
 echo ""
 

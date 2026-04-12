@@ -53,8 +53,10 @@ services:
       dockerfile: backend/scripts/Dockerfile.migrations
     container_name: backend_migrations
     environment:
-      AUTH_DB_CONNECTION_STRING: Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_AUTH_DB:-keycloak_demo_auth};Username=${AUTH_DB_USERNAME};Password=${AUTH_DB_PASSWORD};SSL Mode=Require
-      APP_DB_CONNECTION_STRING: Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_APP_DB:-keycloak_demo_app};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require
+      AUTH_DB_CONNECTION_STRING: ${AUTH_DB_CONNECTION_STRING}
+      TASKS_DB_CONNECTION_STRING: ${TASKS_DB_CONNECTION_STRING}
+      ORDERS_DB_CONNECTION_STRING: ${ORDERS_DB_CONNECTION_STRING}
+      PAYMENTS_DB_CONNECTION_STRING: ${PAYMENTS_DB_CONNECTION_STRING}
 
   backend_auth_api:
     build:
@@ -65,17 +67,63 @@ services:
       backend_migrations:
         condition: service_completed_successfully
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_AUTH_DB:-keycloak_demo_auth};Username=${AUTH_DB_USERNAME};Password=${AUTH_DB_PASSWORD};SSL Mode=Require
+      ConnectionStrings__Auth: ${AUTH_DB_CONNECTION_STRING}
     ports:
       - "5001:8080"
 
-  backend_api:
+  backend_users_api:
     build:
       context: .
-      dockerfile: backend/backend.Api/Dockerfile
-    container_name: backend_api
+      dockerfile: backend/backend.Users.Api/Dockerfile
+    container_name: backend_users_api
+    depends_on:
+      backend_auth_api:
+        condition: service_started
+      backend_migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Auth: ${AUTH_DB_CONNECTION_STRING}
+      ConnectionStrings__Orders: ${ORDERS_DB_CONNECTION_STRING}
+      RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
+      RabbitMq__Enabled: ${RABBITMQ_ENABLED:-true}
+    ports:
+      - "5005:8080"
+
+  backend_tasks_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Tasks.Api/Dockerfile
+    container_name: backend_tasks_api
+    depends_on:
+      backend_migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Auth: ${AUTH_DB_CONNECTION_STRING}
+      ConnectionStrings__Tasks: ${TASKS_DB_CONNECTION_STRING}
+      RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
+      RabbitMq__Enabled: ${RABBITMQ_ENABLED:-true}
+      Keycloak__Authority: ${KEYCLOAK_REALM_URL}
+      Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
+    ports:
+      - "5002:8080"
+
+  backend_orders_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Orders.Api/Dockerfile
+    container_name: backend_orders_api
     depends_on:
       backend_auth_api:
         condition: service_started
@@ -86,10 +134,67 @@ services:
       keycloak:
         condition: service_started
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=${RDS_ENDPOINT};Port=5432;Database=${RDS_APP_DB:-keycloak_demo_app};Username=${APP_DB_USERNAME};Password=${APP_DB_PASSWORD};SSL Mode=Require
+      ConnectionStrings__Orders: ${ORDERS_DB_CONNECTION_STRING}
+      ConnectionStrings__Payments: ${PAYMENTS_DB_CONNECTION_STRING}
+      RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
+      RabbitMq__Enabled: ${RABBITMQ_ENABLED:-true}
+      Keycloak__Authority: ${KEYCLOAK_REALM_URL}
+      Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
       AuthService__BaseUrl: http://backend_auth_api:8080
+    ports:
+      - "5003:8080"
+
+  backend_payments_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Payments.Api/Dockerfile
+    container_name: backend_payments_api
+    depends_on:
+      backend_migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Auth: ${AUTH_DB_CONNECTION_STRING}
+      ConnectionStrings__Orders: ${ORDERS_DB_CONNECTION_STRING}
+      ConnectionStrings__Payments: ${PAYMENTS_DB_CONNECTION_STRING}
+      RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
+      RabbitMq__Enabled: ${RABBITMQ_ENABLED:-true}
+    ports:
+      - "5004:8080"
+
+  backend_api:
+    build:
+      context: .
+      dockerfile: backend/backend.Api/Dockerfile
+    container_name: backend_api
+    depends_on:
+      backend_auth_api:
+        condition: service_started
+      backend_users_api:
+        condition: service_started
+      backend_tasks_api:
+        condition: service_started
+      backend_orders_api:
+        condition: service_started
+      backend_payments_api:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      AuthService__BaseUrl: http://backend_auth_api:8080
+      DownstreamServices__UsersBaseUrl: http://backend_users_api:8080
+      DownstreamServices__TasksBaseUrl: http://backend_tasks_api:8080
+      DownstreamServices__OrdersBaseUrl: http://backend_orders_api:8080
+      DownstreamServices__PaymentsBaseUrl: http://backend_payments_api:8080
       RabbitMq__Uri: amqp://guest:guest@rabbitmq:5672
       Keycloak__Authority: ${KEYCLOAK_REALM_URL}
       Keycloak__MetadataAddress: http://keycloak:8080/realms/myrealm/.well-known/openid-configuration
@@ -102,6 +207,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         VITE_KEYCLOAK_AUTHORITY: ${KEYCLOAK_REALM_URL}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: frontend
     depends_on:
       backend_api:

@@ -1,40 +1,94 @@
+using Aspire.Hosting.ApplicationModel;
+
 var builder = DistributedApplication.CreateBuilder(args);
+var configuration = builder.Configuration;
+var environmentName = builder.Environment.EnvironmentName;
+
+if (string.Equals(environmentName, "Aws", StringComparison.OrdinalIgnoreCase))
+{
+    Console.WriteLine("The 'aws' AppHost profile starts the services on this machine with AWS-oriented configuration. Use scripts/deploy.sh for EC2 deployment.");
+}
 
 var api = builder.AddProject<Projects.backend_Api>("api");
-api.WithEnvironment("ConnectionStrings__Default", "Host=localhost;Port=5432;Database=keycloak_demo;Username=keycloak;Password=123");
-api.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
+ApplyCommonEnvironment(api);
+SetRequiredEnvironment(api, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetRequiredEnvironment(api, "Keycloak__Authority", "Keycloak:Authority");
+SetRequiredEnvironment(api, "AuthService__BaseUrl", "AuthService:BaseUrl");
+SetRequiredEnvironment(api, "DownstreamServices__UsersBaseUrl", "DownstreamServices:UsersBaseUrl");
+SetRequiredEnvironment(api, "DownstreamServices__TasksBaseUrl", "DownstreamServices:TasksBaseUrl");
+SetRequiredEnvironment(api, "DownstreamServices__OrdersBaseUrl", "DownstreamServices:OrdersBaseUrl");
+SetRequiredEnvironment(api, "DownstreamServices__PaymentsBaseUrl", "DownstreamServices:PaymentsBaseUrl");
+SetOptionalEnvironment(api, "ASPNETCORE_URLS", "AppHost:ServiceBindings:Api");
 
 var authApi = builder.AddProject<Projects.backend_Auth_Api>("auth-api");
-authApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
-authApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-authApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5001");
+ApplyCommonEnvironment(authApi);
+SetRequiredEnvironment(authApi, "ConnectionStrings__Auth", "ConnectionStrings:Auth");
+SetOptionalEnvironment(authApi, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetOptionalEnvironment(authApi, "ASPNETCORE_URLS", "AppHost:ServiceBindings:AuthApi");
 
 var usersApi = builder.AddProject<Projects.backend_Users_Api>("users-api");
-usersApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
-usersApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-usersApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5005");
+ApplyCommonEnvironment(usersApi);
+SetRequiredEnvironment(usersApi, "ConnectionStrings__Auth", "ConnectionStrings:Auth");
+SetOptionalEnvironment(usersApi, "ConnectionStrings__Orders", "ConnectionStrings:Orders");
+SetOptionalEnvironment(usersApi, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetOptionalEnvironment(usersApi, "RabbitMq__Enabled", "RabbitMq:Enabled");
+SetOptionalEnvironment(usersApi, "ASPNETCORE_URLS", "AppHost:ServiceBindings:UsersApi");
 
 var tasksApi = builder.AddProject<Projects.backend_Tasks_Api>("tasks-api");
-tasksApi.WithEnvironment("ConnectionStrings__Tasks", "Host=localhost;Port=5432;Database=keycloak_demo_tasks;Username=keycloak;Password=123");
-tasksApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
-tasksApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-tasksApi.WithEnvironment("RabbitMq__Enabled", "true");
-tasksApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5002");
+ApplyCommonEnvironment(tasksApi);
+SetRequiredEnvironment(tasksApi, "ConnectionStrings__Tasks", "ConnectionStrings:Tasks");
+SetRequiredEnvironment(tasksApi, "ConnectionStrings__Auth", "ConnectionStrings:Auth");
+SetRequiredEnvironment(tasksApi, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetRequiredEnvironment(tasksApi, "Keycloak__Authority", "Keycloak:Authority");
+SetOptionalEnvironment(tasksApi, "RabbitMq__Enabled", "RabbitMq:Enabled");
+SetOptionalEnvironment(tasksApi, "ASPNETCORE_URLS", "AppHost:ServiceBindings:TasksApi");
 
 var ordersApi = builder.AddProject<Projects.backend_Orders_Api>("orders-api");
 ordersApi.WithReference(authApi);
-ordersApi.WithEnvironment("ConnectionStrings__Orders", "Host=localhost;Port=5432;Database=keycloak_demo_orders;Username=keycloak;Password=123");
-ordersApi.WithEnvironment("ConnectionStrings__Payments", "Host=localhost;Port=5432;Database=keycloak_demo_payments;Username=keycloak;Password=123");
-ordersApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
-ordersApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-ordersApi.WithEnvironment("RabbitMq__Enabled", "true");
-ordersApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5003");
+ApplyCommonEnvironment(ordersApi);
+SetRequiredEnvironment(ordersApi, "ConnectionStrings__Orders", "ConnectionStrings:Orders");
+SetRequiredEnvironment(ordersApi, "ConnectionStrings__Payments", "ConnectionStrings:Payments");
+SetRequiredEnvironment(ordersApi, "ConnectionStrings__Auth", "ConnectionStrings:Auth");
+SetRequiredEnvironment(ordersApi, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetRequiredEnvironment(ordersApi, "Keycloak__Authority", "Keycloak:Authority");
+SetRequiredEnvironment(ordersApi, "AuthService__BaseUrl", "AuthService:BaseUrl");
+SetOptionalEnvironment(ordersApi, "RabbitMq__Enabled", "RabbitMq:Enabled");
+SetOptionalEnvironment(ordersApi, "ASPNETCORE_URLS", "AppHost:ServiceBindings:OrdersApi");
 
 var paymentsApi = builder.AddProject<Projects.backend_Payments_Api>("payments-api");
-paymentsApi.WithEnvironment("ConnectionStrings__Payments", "Host=localhost;Port=5432;Database=keycloak_demo_payments;Username=keycloak;Password=123");
-paymentsApi.WithEnvironment("ConnectionStrings__Auth", "Host=localhost;Port=5432;Database=keycloak_demo_auth;Username=keycloak;Password=123");
-paymentsApi.WithEnvironment("RabbitMq__Uri", "amqp://guest:guest@localhost:5672");
-paymentsApi.WithEnvironment("RabbitMq__Enabled", "true");
-paymentsApi.WithEnvironment("ASPNETCORE_URLS", "http://127.0.0.1:5004");
+ApplyCommonEnvironment(paymentsApi);
+SetRequiredEnvironment(paymentsApi, "ConnectionStrings__Orders", "ConnectionStrings:Orders");
+SetRequiredEnvironment(paymentsApi, "ConnectionStrings__Payments", "ConnectionStrings:Payments");
+SetRequiredEnvironment(paymentsApi, "ConnectionStrings__Auth", "ConnectionStrings:Auth");
+SetRequiredEnvironment(paymentsApi, "RabbitMq__Uri", "ConnectionStrings:messaging");
+SetOptionalEnvironment(paymentsApi, "RabbitMq__Enabled", "RabbitMq:Enabled");
+SetOptionalEnvironment(paymentsApi, "ASPNETCORE_URLS", "AppHost:ServiceBindings:PaymentsApi");
 
 builder.Build().Run();
+
+void ApplyCommonEnvironment(IResourceBuilder<ProjectResource> project)
+{
+    project.WithEnvironment("DOTNET_ENVIRONMENT", environmentName);
+    project.WithEnvironment("ASPNETCORE_ENVIRONMENT", environmentName);
+}
+
+void SetRequiredEnvironment(IResourceBuilder<ProjectResource> project, string environmentVariableName, string configurationKey)
+{
+    var value = configuration[configurationKey];
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException(
+            $"Missing required AppHost configuration '{configurationKey}' for environment variable '{environmentVariableName}'.");
+    }
+
+    project.WithEnvironment(environmentVariableName, value);
+}
+
+void SetOptionalEnvironment(IResourceBuilder<ProjectResource> project, string environmentVariableName, string configurationKey)
+{
+    var value = configuration[configurationKey];
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        project.WithEnvironment(environmentVariableName, value);
+    }
+}
