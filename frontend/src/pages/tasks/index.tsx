@@ -215,7 +215,7 @@ export function TasksPage() {
                             <Table.Td>
                                 <Badge variant="outline">{task.priority}</Badge>
                             </Table.Td>
-                            <Table.Td>{task.comments.length}</Table.Td>
+                            <Table.Td>{(task.comments ?? []).length}</Table.Td>
                             <Table.Td>
                                 <Group gap="xs">
                                     <Button size="xs" variant="light" loading={isUpdating} onClick={() => onCycleStatus(task)}>
@@ -242,16 +242,16 @@ export function TasksPage() {
                     <Stack>
                         <Group justify="space-between">
                             <Text fw={700}>{task.title}</Text>
-                            <Badge>{task.comments.length} comments</Badge>
+                            <Badge>{(task.comments ?? []).length} comments</Badge>
                         </Group>
 
-                        {task.comments.length === 0 ? (
+                        {((task.comments ?? []).length === 0) ? (
                             <Text c="dimmed" size="sm">
                                 No comments yet.
                             </Text>
                         ) : (
                             <Stack gap={6}>
-                                {task.comments.map((comment) => (
+                                {(task.comments ?? []).map((comment) => (
                                     <Text key={comment.id} size="sm">
                                         <strong>{comment.authorUsername}</strong>: {comment.content}
                                     </Text>

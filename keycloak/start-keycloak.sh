@@ -1,42 +1,94 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required_vars=(
-  AWS_REGION
-  RDS_ENDPOINT
-  RDS_USERNAME
-  RDS_KEYCLOAK_DB
-  RDS_MASTER_SECRET_ARN
-  KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME
-)
+realm_name="${KEYCLOAK_REALM_NAME:-myrealm}"
+frontend_client_id="${KEYCLOAK_FRONTEND_CLIENT_ID:-react-client}"
+app_public_url="${APP_PUBLIC_URL:-}"
+admin_user="${KEYCLOAK_ADMIN:-admin}"
+admin_password="${KEYCLOAK_ADMIN_PASSWORD:-}"
 
-for name in "${required_vars[@]}"; do
-  if [ -z "${!name:-}" ]; then
-    echo "Missing required environment variable: $name" >&2
-    exit 1
+if [ -z "$admin_password" ]; then
+  echo "Missing required environment variable: KEYCLOAK_ADMIN_PASSWORD" >&2
+  exit 1
+fi
+
+/opt/keycloak/bin/kc.sh start-dev &
+kc_pid=$!
+
+cleanup() {
+  if kill -0 "$kc_pid" >/dev/null 2>&1; then
+    kill "$kc_pid" >/dev/null 2>&1 || true
   fi
-done
+}
 
-RDS_PASSWORD="$(aws secretsmanager get-secret-value \
-  --region "$AWS_REGION" \
-  --secret-id "$RDS_MASTER_SECRET_ARN" \
-  --query 'SecretString' \
-  --output text | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+trap cleanup INT TERM
 
-KEYCLOAK_ADMIN_PASSWORD="$(aws ssm get-parameter \
-  --region "$AWS_REGION" \
-  --name "$KEYCLOAK_ADMIN_PASSWORD_PARAMETER_NAME" \
-  --with-decryption \
-  --query 'Parameter.Value' \
-  --output text)"
+wait_for_keycloak() {
+  local attempts=60
 
-export KC_DB=postgres
-export KC_DB_URL="jdbc:postgresql://${RDS_ENDPOINT}:5432/${RDS_KEYCLOAK_DB}?sslmode=require"
-export KC_DB_USERNAME="${RDS_USERNAME}"
-export KC_DB_PASSWORD="${RDS_PASSWORD}"
-export KEYCLOAK_ADMIN=admin
-export KEYCLOAK_ADMIN_PASSWORD
-export KC_HOSTNAME_STRICT=false
-export KC_HTTP_ENABLED=true
+  until curl -fsS http://127.0.0.1:8080/realms/master >/dev/null 2>&1; do
+    attempts=$((attempts - 1))
+    if [ "$attempts" -le 0 ]; then
+      echo "Keycloak did not become ready in time." >&2
+      return 1
+    fi
 
-exec /opt/keycloak/bin/kc.sh start-dev
+    sleep 2
+  done
+}
+
+ensure_realm() {
+  if /opt/keycloak/bin/kcadm.sh get "realms/${realm_name}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  /opt/keycloak/bin/kcadm.sh create realms -s realm="${realm_name}" -s enabled=true >/dev/null
+}
+
+ensure_frontend_client() {
+  if [ -z "$app_public_url" ]; then
+    echo "APP_PUBLIC_URL is not set. Skipping Keycloak client redirect/origin sync." >&2
+    return 0
+  fi
+
+  local redirect_uri="${app_public_url%/}/*"
+  local client_lookup
+  client_lookup="$(/opt/keycloak/bin/kcadm.sh get "clients?clientId=${frontend_client_id}" -r "${realm_name}")"
+
+  local existing_client_id
+  existing_client_id="$(printf '%s' "$client_lookup" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+
+  if [ -z "$existing_client_id" ]; then
+    /opt/keycloak/bin/kcadm.sh create clients -r "${realm_name}" \
+      -s clientId="${frontend_client_id}" \
+      -s enabled=true \
+      -s publicClient=true \
+      -s standardFlowEnabled=true \
+      -s directAccessGrantsEnabled=true \
+      -s rootUrl="${app_public_url}" \
+      -s 'redirectUris=["'"${redirect_uri}"'"]' \
+      -s 'webOrigins=["'"${app_public_url}"'"]' >/dev/null
+    return 0
+  fi
+
+  /opt/keycloak/bin/kcadm.sh update "clients/${existing_client_id}" -r "${realm_name}" \
+    -s enabled=true \
+    -s publicClient=true \
+    -s standardFlowEnabled=true \
+    -s directAccessGrantsEnabled=true \
+    -s rootUrl="${app_public_url}" \
+    -s 'redirectUris=["'"${redirect_uri}"'"]' \
+    -s 'webOrigins=["'"${app_public_url}"'"]' >/dev/null
+}
+
+wait_for_keycloak
+/opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://127.0.0.1:8080 \
+  --realm master \
+  --user "${admin_user}" \
+  --password "${admin_password}" >/dev/null
+
+ensure_realm
+ensure_frontend_client
+
+wait "$kc_pid"
