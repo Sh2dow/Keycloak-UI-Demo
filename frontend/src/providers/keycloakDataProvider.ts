@@ -98,8 +98,19 @@ const normalizeList = (resource: string, payload: unknown): ListRecord[] => {
 };
 
 const authHeaders = async (asUserId?: string): Promise<AxiosRequestConfig["headers"]> => {
-    const token = await getAccessToken(!!asUserId, asUserId);
-    if (!token) return {};
+    const token = await getAccessToken(false, asUserId);
+    if (!token) {
+        // If impersonating and token is missing/expired, force re-login
+        if (asUserId) {
+            try {
+                await keycloakUserManager.signinRedirect();
+            } catch {
+                // Ignore redirect errors
+            }
+            throw new Error("Authentication expired. Please log in again to use impersonation.");
+        }
+        return {};
+    }
 
     return {
         Authorization: `Bearer ${token}`,

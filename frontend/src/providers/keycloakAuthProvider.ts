@@ -64,11 +64,23 @@ export const keycloakAuthProvider: AuthBindings = {
     },
 };
 
+function isTokenExpired(token: string, clockSkewSeconds = 60): boolean {
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const exp = typeof payload.exp === "number" ? payload.exp : 0;
+        return Date.now() >= (exp - clockSkewSeconds) * 1000;
+    } catch {
+        return true;
+    }
+}
+
 export async function getAccessToken(forceRefresh = false, asUserId?: string): Promise<string | null> {
     let user = await keycloakUserManager.getUser();
+    const tokenExpired = !!user?.access_token && isTokenExpired(user.access_token);
     
-    // If force refresh is needed and user has expired or is missing token, refresh
-    if (forceRefresh && user && (user.expired || !user.access_token)) {
+    // Refresh if forced, or if impersonating and token is expired/missing
+    const needsRefresh = forceRefresh || (asUserId && (!user || user.expired || !user.access_token || tokenExpired));
+    if (needsRefresh && user) {
         try {
             await keycloakUserManager.signinSilent();
             user = await keycloakUserManager.getUser();
@@ -77,24 +89,23 @@ export async function getAccessToken(forceRefresh = false, asUserId?: string): P
             try {
                 await keycloakUserManager.signinRedirect();
                 user = await keycloakUserManager.getUser();
-            } catch {
-                // Redirect failed, return null
+            } catch (redirectErr) {
                 return null;
             }
         }
     }
     
-    // If impersonating, force a token refresh to ensure admin role is present
-    if (asUserId && user && !user.expired) {
-        try {
-            await keycloakUserManager.signinSilent();
-            user = await keycloakUserManager.getUser();
-        } catch {
-            // Silent refresh failed, continue with current token
-        }
-    }
-    
     if (!user || user.expired || !user.access_token) {
+        return null;
+    }
+
+    // Final safety check: if token is expired, redirect to login when impersonating
+    if (asUserId && isTokenExpired(user.access_token)) {
+        try {
+            await keycloakUserManager.signinRedirect();
+        } catch {
+            // ignore
+        }
         return null;
     }
 

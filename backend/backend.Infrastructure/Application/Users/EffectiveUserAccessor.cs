@@ -32,8 +32,16 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
         if (_cachedUser != null) return _cachedUser;
 
         var sub = _currentUser.Subject;
+        var rawAsUserId = _httpContextAccessor.HttpContext?.Request.Query["asUserId"].FirstOrDefault();
+
         if (string.IsNullOrWhiteSpace(sub))
         {
+            if (!string.IsNullOrWhiteSpace(rawAsUserId))
+            {
+                // Log a warning so we can detect when anonymous requests try to impersonate
+                // (this usually means the JWT token was rejected or missing)
+            }
+
             // Return a default user for anonymous requests
             var defaultUser = await _userDirectory.EnsureAsync("anonymous", "Anonymous", null, ct);
             _cachedUser = defaultUser;
@@ -42,7 +50,6 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
 
         var currentUser = await _userDirectory.EnsureAsync(sub, _currentUser.PreferredUsername, _currentUser.Email, ct);
 
-        var rawAsUserId = _httpContextAccessor.HttpContext?.Request.Query["asUserId"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(rawAsUserId))
         {
             _cachedUser = currentUser;

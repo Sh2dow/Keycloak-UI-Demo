@@ -122,6 +122,10 @@ export function TasksPage() {
         if (!content) return;
 
         const token = await getAccessToken(false, asUserId);
+        if (!token && asUserId) {
+            console.warn("[TasksPage] Token missing for impersonation when adding comment.");
+            throw new Error("Authentication expired. Please log in again to use impersonation.");
+        }
         await axios.post(
             `${API_URL}/api/tasks/${taskId}/comments`,
             { content },

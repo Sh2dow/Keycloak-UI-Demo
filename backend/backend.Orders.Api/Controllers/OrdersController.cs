@@ -14,18 +14,110 @@ public class OrdersController : ControllerBase
 {
     private readonly ISender _sender;
     private readonly ILogger<OrdersController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public OrdersController(ISender sender, ILogger<OrdersController> logger)
+    public OrdersController(ISender sender, ILogger<OrdersController> logger, IConfiguration configuration)
     {
         _sender = sender;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<OrderViewDto>>> GetOrders(CancellationToken ct)
     {
+        var hasAuth = Request.Headers.TryGetValue("Authorization", out var authVal);
+        _logger.LogInformation(
+            "GetOrders called. QueryString={QueryString}, HasAuthHeader={HasAuth}, AuthPrefix={AuthPrefix}, IsAuthenticated={IsAuth}, UserName={UserName}",
+            Request.QueryString.Value,
+            hasAuth,
+            hasAuth ? authVal.ToString()[..Math.Min(20, authVal.ToString().Length)] + "..." : null,
+            User.Identity?.IsAuthenticated,
+            User.Identity?.Name);
         var result = await _sender.Send(new GetOrdersQuery(), ct);
         return Ok(result);
+    }
+
+    [HttpGet("debug/all")]
+    public async Task<ActionResult<IReadOnlyList<object>>> GetAllOrders(CancellationToken ct)
+    {
+        var orders = await _sender.Send(new GetAllOrdersQuery(), ct);
+        return Ok(orders);
+    }
+
+    [HttpGet("debug/auth")]
+    public ActionResult<object> DebugAuth()
+    {
+        var authHeader = Request.Headers.TryGetValue("Authorization", out var h) ? h.ToString() : null;
+        var identity = User.Identity;
+        return Ok(new
+        {
+            hasAuthHeader = !string.IsNullOrWhiteSpace(authHeader),
+            authHeaderPrefix = authHeader?.Length > 20 ? authHeader[..20] + "..." : authHeader,
+            isAuthenticated = identity?.IsAuthenticated ?? false,
+            name = identity?.Name,
+            subject = User.FindFirst("sub")?.Value,
+            preferredUsername = User.FindFirst("preferred_username")?.Value,
+            email = User.FindFirst("email")?.Value,
+            roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList(),
+            asUserId = Request.Query["asUserId"].FirstOrDefault(),
+        });
+    }
+
+    [HttpGet("debug/jwt")]
+    public async Task<ActionResult<object>> DebugJwt()
+    {
+        var authHeader = Request.Headers.TryGetValue("Authorization", out var h) ? h.ToString() : null;
+        if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer "))
+        {
+            return Ok(new { tokenPresent = false });
+        }
+
+        var token = authHeader["Bearer ".Length..];
+        var authority = _configuration["Keycloak:Authority"]?.TrimEnd('/');
+        var metadataAddress = _configuration["Keycloak:MetadataAddress"];
+        if (string.IsNullOrWhiteSpace(metadataAddress))
+        {
+            metadataAddress = $"{authority}/.well-known/openid-configuration";
+        }
+
+        string? validationError = null;
+        try
+        {
+            using var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
+            using var http = new HttpClient(handler);
+            var config = await http.GetStringAsync(metadataAddress);
+            var doc = System.Text.Json.JsonDocument.Parse(config);
+            var jwksUri = doc.RootElement.GetProperty("jwks_uri").GetString();
+            var jwks = await http.GetStringAsync(jwksUri!);
+
+            var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            var validationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = true,
+                ValidIssuer = authority,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(2),
+                IssuerSigningKeys = new Microsoft.IdentityModel.Tokens.JsonWebKeySet(jwks).GetSigningKeys(),
+                NameClaimType = "sub",
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role
+            };
+
+            tokenHandler.ValidateToken(token, validationParameters, out _);
+        }
+        catch (Exception ex)
+        {
+            validationError = ex.ToString();
+        }
+
+        return Ok(new
+        {
+            tokenPresent = true,
+            authority,
+            metadataAddress,
+            validationError,
+        });
     }
 
     [HttpGet("{id:guid}")]

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using backend.Domain.Data;
 using backend.Infrastructure.Application.Security;
 using backend.Infrastructure.Application.Users;
@@ -34,18 +35,29 @@ if (string.IsNullOrWhiteSpace(metadataAddress))
     metadataAddress = $"{normalizedAuthority}/.well-known/openid-configuration";
 }
 
+var jwkStore = new JwkStore();
+var jwkRefresher = new KeycloakJwkRefresher(
+    jwkStore,
+    metadataAddress,
+    Microsoft.Extensions.Logging.Abstractions.NullLogger<KeycloakJwkRefresher>.Instance);
+try
+{
+    await jwkRefresher.RefreshAsync();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Warning: failed to fetch Keycloak JWKS at startup: {ex.Message}");
+}
+
+builder.Services.AddSingleton(jwkStore);
+builder.Services.AddHostedService(_ => jwkRefresher);
+
 // Add authentication with Keycloak
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
     {
-        options.Authority = normalizedAuthority;
-        options.MetadataAddress = metadataAddress;
         options.RequireHttpsMetadata = false;
         options.MapInboundClaims = false;
-        options.BackchannelHttpHandler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-        };
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -55,7 +67,8 @@ builder.Services.AddAuthentication("Bearer")
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(2),
             NameClaimType = "sub",
-            RoleClaimType = ClaimTypes.Role
+            RoleClaimType = ClaimTypes.Role,
+            IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) => jwkStore.GetKeys()
         };
 
         options.Events = new JwtBearerEvents
@@ -180,3 +193,91 @@ app.MapControllers();
 app.MapDefaultEndpoints();
 
 app.Run();
+
+internal sealed class JwkStore
+{
+    private readonly ReaderWriterLockSlim _lock = new();
+    private List<Microsoft.IdentityModel.Tokens.SecurityKey> _keys = new();
+
+    public IReadOnlyList<Microsoft.IdentityModel.Tokens.SecurityKey> GetKeys()
+    {
+        _lock.EnterReadLock();
+        try { return _keys.ToList(); }
+        finally { _lock.ExitReadLock(); }
+    }
+
+    public void UpdateKeys(IEnumerable<Microsoft.IdentityModel.Tokens.SecurityKey> keys)
+    {
+        _lock.EnterWriteLock();
+        try { _keys = keys.ToList(); }
+        finally { _lock.ExitWriteLock(); }
+    }
+}
+
+internal sealed class KeycloakJwkRefresher : BackgroundService
+{
+    private readonly JwkStore _store;
+    private readonly string _metadataAddress;
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<KeycloakJwkRefresher> _logger;
+    private readonly TimeSpan _refreshInterval = TimeSpan.FromMinutes(15);
+
+    public KeycloakJwkRefresher(JwkStore store, string metadataAddress, ILogger<KeycloakJwkRefresher> logger)
+    {
+        _store = store;
+        _metadataAddress = metadataAddress;
+        _logger = logger;
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+        _httpClient = new HttpClient(handler);
+    }
+
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        var configJson = await _httpClient.GetStringAsync(_metadataAddress, cancellationToken);
+        using var doc = JsonDocument.Parse(configJson);
+        if (!doc.RootElement.TryGetProperty("jwks_uri", out var jwksUriProp))
+        {
+            _logger.LogWarning("OpenID configuration does not contain jwks_uri.");
+            return;
+        }
+
+        var jwksUri = jwksUriProp.GetString();
+        if (string.IsNullOrWhiteSpace(jwksUri))
+        {
+            _logger.LogWarning("jwks_uri is empty in OpenID configuration.");
+            return;
+        }
+
+        var jwksJson = await _httpClient.GetStringAsync(jwksUri, cancellationToken);
+        var jwks = new JsonWebKeySet(jwksJson);
+        _store.UpdateKeys(jwks.GetSigningKeys());
+        _logger.LogInformation("Refreshed Keycloak JWKS. KeyCount={KeyCount}", _store.GetKeys().Count);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RefreshAsync(stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to refresh Keycloak JWKS.");
+            }
+
+            try
+            {
+                await Task.Delay(_refreshInterval, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+}

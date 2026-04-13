@@ -14,10 +14,12 @@ namespace backend.Tasks.Api.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<TasksController> _logger;
 
-    public TasksController(ISender sender)
+    public TasksController(ISender sender, ILogger<TasksController> logger)
     {
         _sender = sender;
+        _logger = logger;
     }
 
     [HttpGet("{id}")]
@@ -30,8 +32,35 @@ public class TasksController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TaskItemDto>>> GetTasks([FromQuery] GetTasksQuery query, CancellationToken ct)
     {
+        var hasAuth = Request.Headers.TryGetValue("Authorization", out var authVal);
+        _logger.LogInformation(
+            "GetTasks called. QueryString={QueryString}, HasAuthHeader={HasAuth}, AuthPrefix={AuthPrefix}, IsAuthenticated={IsAuth}, UserName={UserName}",
+            Request.QueryString.Value,
+            hasAuth,
+            hasAuth ? authVal.ToString()[..Math.Min(20, authVal.ToString().Length)] + "..." : null,
+            User.Identity?.IsAuthenticated,
+            User.Identity?.Name);
         var tasks = await _sender.Send(query, ct);
         return Ok(tasks);
+    }
+
+    [HttpGet("debug/auth")]
+    public ActionResult<object> DebugAuth()
+    {
+        var authHeader = Request.Headers.TryGetValue("Authorization", out var h) ? h.ToString() : null;
+        var identity = User.Identity;
+        return Ok(new
+        {
+            hasAuthHeader = !string.IsNullOrWhiteSpace(authHeader),
+            authHeaderPrefix = authHeader?.Length > 20 ? authHeader[..20] + "..." : authHeader,
+            isAuthenticated = identity?.IsAuthenticated ?? false,
+            name = identity?.Name,
+            subject = User.FindFirst("sub")?.Value,
+            preferredUsername = User.FindFirst("preferred_username")?.Value,
+            email = User.FindFirst("email")?.Value,
+            roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList(),
+            asUserId = Request.Query["asUserId"].FirstOrDefault(),
+        });
     }
 
     [HttpPost]
