@@ -40,8 +40,6 @@ if (!string.IsNullOrWhiteSpace(ordersDbConnectionString))
             .UseSnakeCaseNamingConvention());
 }
 
-builder.Services.AddDbContextFactory<AuthDbContext>();
-
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 
 // Register RabbitMQ connection factory

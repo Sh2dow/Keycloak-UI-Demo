@@ -52,8 +52,6 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(authDbConnectionString)
         .UseSnakeCaseNamingConvention());
 
-builder.Services.AddDbContextFactory<OrdersDbContext>();
-
 builder.Services.AddScoped<IUserDirectory, EfUserDirectory>();
 builder.Services.AddScoped<IEffectiveUserAccessor, EffectiveUserAccessor>();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();

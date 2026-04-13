@@ -30,6 +30,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddScoped<CreateDigitalOrderCommandValidator>();
 builder.Services.AddScoped<CreatePhysicalOrderCommandValidator>();
 builder.Services.AddScoped<CreateOrderCommandValidator>();
+builder.Services.AddScoped<UpdateOrderCommandValidator>();
 
 var keycloakAuthority = builder.Configuration["Keycloak:Authority"];
 if (string.IsNullOrWhiteSpace(keycloakAuthority))
@@ -113,7 +114,6 @@ builder.Services.AddDbContext<PaymentsDbContext>(options =>
     options.UseNpgsql(paymentsDbConnectionString)
         .UseSnakeCaseNamingConvention());
 
-builder.Services.AddDbContextFactory<OrdersDbContext>();
 builder.Services.Configure<AuthServiceOptions>(builder.Configuration.GetSection(AuthServiceOptions.SectionName));
 
 builder.Services.AddHttpClient<IUserDirectory, HttpUserDirectory>((serviceProvider, client) =>

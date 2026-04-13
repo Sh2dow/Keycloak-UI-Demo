@@ -29,8 +29,4 @@
     <ProjectReference Include="..\backend.ServiceDefaults\backend.ServiceDefaults.csproj" />
     <ProjectReference Include="..\backend.Shared\backend.Shared.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\backend.http" Link="backend.http" />
-  </ItemGroup>
 </Project>

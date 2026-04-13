@@ -2,6 +2,7 @@ using backend.Domain.Data;
 using backend.Domain.Models;
 using backend.Shared.Application.Users;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace backend.Infrastructure.Application.Users;
 
@@ -52,6 +53,7 @@ public sealed class EfUserDirectory : IUserDirectory
 
     public async Task<AppUser> EnsureAsync(string subject, string? preferredUsername, string? email, CancellationToken ct = default)
     {
+        var fallbackUserNameSuffix = subject.Length <= 8 ? subject : subject[..8];
         var user = await _db.AppUsers.FirstOrDefaultAsync(x => x.Subject == subject, ct);
         if (user != null)
         {
@@ -61,13 +63,23 @@ public sealed class EfUserDirectory : IUserDirectory
         user = new AppUser
         {
             Subject = subject,
-            Username = preferredUsername ?? $"user-{subject[..8]}",
+            Username = preferredUsername ?? $"user-{fallbackUserNameSuffix}",
             Email = email
         };
 
         _db.AppUsers.Add(user);
-        await _db.SaveChangesAsync(ct);
-        return user;
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            return user;
+        }
+        catch (DbUpdateException ex) when (IsDuplicateSubjectViolation(ex))
+        {
+            _db.Entry(user).State = EntityState.Detached;
+
+            return await _db.AppUsers.FirstAsync(x => x.Subject == subject, ct);
+        }
     }
 
     public async Task<AppUser> CreateAsync(AppUser user, CancellationToken ct = default)
@@ -89,4 +101,9 @@ public sealed class EfUserDirectory : IUserDirectory
         await _db.SaveChangesAsync(ct);
         return user;
     }
+
+    private static bool IsDuplicateSubjectViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException postgresException
+        && postgresException.SqlState == PostgresErrorCodes.UniqueViolation
+        && string.Equals(postgresException.ConstraintName, "ix_app_users_subject", StringComparison.OrdinalIgnoreCase);
 }
