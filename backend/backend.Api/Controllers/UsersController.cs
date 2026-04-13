@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using backend.Users.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Api.Controllers;
@@ -100,46 +101,3 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 }
-
-public sealed record UserDto(
-    Guid Id,
-    string Subject,
-    string Username,
-    string? Email,
-    DateTime CreatedAtUtc,
-    IReadOnlyList<OrderItemDto> Orders
-);
-
-public sealed record UserWithOrdersDto(
-    Guid Id,
-    string Subject,
-    string Username,
-    string? Email,
-    DateTime CreatedAtUtc,
-    IReadOnlyList<OrderItemDto> Orders
-)
-{
-    public UserDto ToDto() => new(Id, Subject, Username, Email, CreatedAtUtc, Orders);
-}
-
-public sealed record OrderItemDto(
-    Guid Id,
-    string OrderType,
-    decimal TotalAmount,
-    string Status,
-    DateTime CreatedAtUtc,
-    string? DownloadUrl,
-    string? ShippingAddress,
-    string? TrackingNumber
-);
-
-public sealed record CreateUserRequest(
-    string Subject,
-    string Username,
-    string? Email
-);
-
-public sealed record UpdateUserRequest(
-    string Username,
-    string? Email
-);

@@ -10,3 +10,22 @@ public sealed record PaymentViewDto(
     string? Provider,
     string? ProviderTransactionId
 );
+
+public sealed record PaymentDto(
+    Guid Id,
+    Guid UserId,
+    decimal Amount,
+    string Status,
+    DateTime CreatedAtUtc
+);
+
+public sealed record CreatePaymentRequest(
+    Guid UserId,
+    decimal Amount,
+    string Status
+);
+
+public sealed record UpdatePaymentRequest(
+    decimal Amount,
+    string Status
+);

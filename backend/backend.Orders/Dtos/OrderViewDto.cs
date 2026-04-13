@@ -11,4 +11,7 @@ public sealed record OrderViewDto(
     string? DownloadUrl,
     string? ShippingAddress,
     string? TrackingNumber
-);
+)
+{
+    public OrderDto ToDto() => new(Id, Guid.Empty, OrderType, TotalAmount, Status, CreatedAtUtc, DownloadUrl, ShippingAddress, TrackingNumber);
+}

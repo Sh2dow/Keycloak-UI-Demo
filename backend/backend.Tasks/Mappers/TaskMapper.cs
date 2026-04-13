@@ -23,8 +23,8 @@ public static partial class TaskMapper
             task.UserId,
             task.Title,
             task.Description,
-            task.Status,
-            task.Priority,
+            string.IsNullOrWhiteSpace(task.Status) ? "todo" : task.Status,
+            string.IsNullOrWhiteSpace(task.Priority) ? "medium" : task.Priority,
             task.CreatedAtUtc,
             task.UpdatedAtUtc,
             comments

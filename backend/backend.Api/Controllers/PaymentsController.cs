@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using backend.Payments.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Api.Controllers;
@@ -100,22 +101,3 @@ public class PaymentsController : ControllerBase
         return NoContent();
     }
 }
-
-public sealed record PaymentDto(
-    Guid Id,
-    Guid UserId,
-    decimal Amount,
-    string Status,
-    DateTime CreatedAtUtc
-);
-
-public sealed record CreatePaymentRequest(
-    Guid UserId,
-    decimal Amount,
-    string Status
-);
-
-public sealed record UpdatePaymentRequest(
-    decimal Amount,
-    string Status
-);

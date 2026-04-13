@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using backend.Orders.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Api.Controllers;
@@ -79,8 +80,7 @@ public class OrdersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<OrderDto>> CreateOrder(CreateOrderRequest request, CancellationToken ct)
     {
-        var createRequest = new CreateOrderViewRequest(request.OrderType, request.TotalAmount, request.DownloadUrl, request.ShippingAddress, request.TrackingNumber);
-        using var response = await ForwardRequestAsync(HttpMethod.Post, "api/orders", createRequest, ct);
+        using var response = await ForwardRequestAsync(HttpMethod.Post, "api/orders", request, ct);
         if (!response.IsSuccessStatusCode)
         {
             return StatusCode((int)response.StatusCode);
@@ -115,50 +115,3 @@ public class OrdersController : ControllerBase
         return NoContent();
     }
 }
-
-public sealed record OrderDto(
-    Guid Id,
-    Guid UserId,
-    string OrderType,
-    decimal TotalAmount,
-    string Status,
-    DateTime CreatedAtUtc,
-    string? DownloadUrl,
-    string? ShippingAddress,
-    string? TrackingNumber
-);
-
-public sealed record OrderViewDto(
-    Guid Id,
-    string OrderType,
-    decimal TotalAmount,
-    string Status,
-    DateTime CreatedAtUtc,
-    string? DownloadUrl,
-    string? ShippingAddress,
-    string? TrackingNumber
-)
-{
-    public OrderDto ToDto() => new(Id, Guid.Empty, OrderType, TotalAmount, Status, CreatedAtUtc, DownloadUrl, ShippingAddress, TrackingNumber);
-}
-
-public sealed record CreateOrderRequest(
-    string OrderType,
-    decimal TotalAmount,
-    string? DownloadUrl,
-    string? ShippingAddress,
-    string? TrackingNumber
-);
-
-public sealed record CreateOrderViewRequest(
-    string OrderType,
-    decimal TotalAmount,
-    string? DownloadUrl,
-    string? ShippingAddress,
-    string? TrackingNumber
-);
-
-public sealed record UpdateOrderRequest(
-    string OrderNumber,
-    decimal TotalAmount
-);

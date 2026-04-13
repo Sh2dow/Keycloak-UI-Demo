@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using backend.Tasks.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Api.Controllers;
@@ -37,7 +38,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<TaskDto>>> GetTasks(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<TaskItemDto>>> GetTasks(CancellationToken ct)
     {
         using var response = await SendAsync(HttpMethod.Get, "api/tasks", null, ct);
         if (!response.IsSuccessStatusCode)
@@ -45,12 +46,12 @@ public class TasksController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var tasks = await response.Content.ReadFromJsonAsync<IReadOnlyList<TaskDto>>(ct);
+        var tasks = await response.Content.ReadFromJsonAsync<IReadOnlyList<TaskItemDto>>(ct);
         return Ok(tasks);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<TaskDto>> GetTaskById(Guid id, CancellationToken ct)
+    public async Task<ActionResult<TaskItemDto>> GetTaskById(Guid id, CancellationToken ct)
     {
         using var response = await SendAsync(HttpMethod.Get, $"api/tasks/{id}", null, ct);
         if (!response.IsSuccessStatusCode)
@@ -58,12 +59,12 @@ public class TasksController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var task = await response.Content.ReadFromJsonAsync<TaskDto>(ct);
+        var task = await response.Content.ReadFromJsonAsync<TaskItemDto>(ct);
         return task == null ? NotFound() : Ok(task);
     }
 
     [HttpPost]
-    public async Task<ActionResult<TaskDto>> CreateTask(CreateTaskRequest request, CancellationToken ct)
+    public async Task<ActionResult<TaskItemDto>> CreateTask(CreateTaskRequest request, CancellationToken ct)
     {
         using var response = await SendAsync(HttpMethod.Post, "api/tasks", request, ct);
         if (!response.IsSuccessStatusCode)
@@ -71,12 +72,12 @@ public class TasksController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var task = await response.Content.ReadFromJsonAsync<TaskDto>(ct);
+        var task = await response.Content.ReadFromJsonAsync<TaskItemDto>(ct);
         return task == null ? NotFound() : CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<TaskDto>> UpdateTask(Guid id, UpdateTaskRequest request, CancellationToken ct)
+    public async Task<ActionResult<TaskItemDto>> UpdateTask(Guid id, UpdateTaskRequest request, CancellationToken ct)
     {
         using var response = await SendAsync(HttpMethod.Put, $"api/tasks/{id}", request, ct);
         if (!response.IsSuccessStatusCode)
@@ -84,8 +85,8 @@ public class TasksController : ControllerBase
             return StatusCode((int)response.StatusCode);
         }
 
-        var task = await response.Content.ReadFromJsonAsync<TaskDto>(ct);
-        return Ok(task);
+        var task = await response.Content.ReadFromJsonAsync<TaskItemDto>(ct);
+        return task == null ? NotFound() : Ok(task);
     }
 
     [HttpDelete("{id:guid}")]
@@ -99,24 +100,17 @@ public class TasksController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/comments")]
+    public async Task<ActionResult<TaskCommentDto>> AddTaskComment(Guid id, AddTaskCommentRequest request, CancellationToken ct)
+    {
+        using var response = await SendAsync(HttpMethod.Post, $"api/tasks/{id}/comments", request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return StatusCode((int)response.StatusCode);
+        }
+
+        var comment = await response.Content.ReadFromJsonAsync<TaskCommentDto>(ct);
+        return comment == null ? NotFound() : Ok(comment);
+    }
 }
-
-public sealed record TaskDto(
-    Guid Id,
-    string Title,
-    string Description,
-    bool IsCompleted,
-    DateTime CreatedAtUtc
-);
-
-public sealed record CreateTaskRequest(
-    string Title,
-    string Description,
-    bool IsCompleted
-);
-
-public sealed record UpdateTaskRequest(
-    string Title,
-    string Description,
-    bool IsCompleted
-);

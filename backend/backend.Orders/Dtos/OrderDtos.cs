@@ -13,8 +13,17 @@ public sealed record CreateOrderRequest(
 );
 
 public sealed record UpdateOrderRequest(
+    string OrderNumber,
+    decimal TotalAmount
+);
+
+public sealed record OrderDto(
+    Guid Id,
+    Guid UserId,
+    string OrderType,
     decimal TotalAmount,
     string Status,
+    DateTime CreatedAtUtc,
     string? DownloadUrl,
     string? ShippingAddress,
     string? TrackingNumber

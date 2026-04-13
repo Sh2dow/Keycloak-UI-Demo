@@ -1,21 +1,5 @@
 namespace backend.Tasks.Dtos;
 
-public sealed record CreateTaskRequest(
-    string Title,
-    string? Description,
-    string? Status,
-    string? Priority
-);
-
-public sealed record UpdateTaskRequest(
-    string? Title,
-    string? Description,
-    string? Status,
-    string? Priority
-);
-
-public sealed record AddTaskCommentRequest(string Content);
-
 public sealed record TaskCommentDto(
     Guid Id,
     Guid AuthorId,
@@ -35,3 +19,19 @@ public sealed record TaskItemDto(
     DateTime? UpdatedAtUtc,
     IReadOnlyList<TaskCommentDto> Comments
 );
+
+public sealed record CreateTaskRequest(
+    string Title,
+    string? Description,
+    string? Status,
+    string? Priority
+);
+
+public sealed record UpdateTaskRequest(
+    string? Title,
+    string? Description,
+    string? Status,
+    string? Priority
+);
+
+public sealed record AddTaskCommentRequest(string Content);

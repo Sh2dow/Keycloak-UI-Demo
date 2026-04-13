@@ -15,7 +15,7 @@ public sealed record UserOrderSummaryDto(
     string? TrackingNumber
 );
 
-public sealed record UserWithOrdersDto(
+public sealed record UserDto(
     Guid Id,
     string Subject,
     string Username,
@@ -23,3 +23,15 @@ public sealed record UserWithOrdersDto(
     DateTime CreatedAtUtc,
     IReadOnlyList<UserOrderSummaryDto> Orders
 );
+
+public sealed record UserWithOrdersDto(
+    Guid Id,
+    string Subject,
+    string Username,
+    string? Email,
+    DateTime CreatedAtUtc,
+    IReadOnlyList<UserOrderSummaryDto> Orders
+)
+{
+    public UserDto ToDto() => new(Id, Subject, Username, Email, CreatedAtUtc, Orders);
+}

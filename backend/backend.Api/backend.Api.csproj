@@ -26,7 +26,11 @@
   <ItemGroup>
     <ProjectReference Include="..\backend.Domain\backend.Domain.csproj" />
     <ProjectReference Include="..\backend.Infrastructure\backend.Infrastructure.csproj" />
+    <ProjectReference Include="..\backend.Orders\backend.Orders.csproj" />
+    <ProjectReference Include="..\backend.Payments\backend.Payments.csproj" />
     <ProjectReference Include="..\backend.ServiceDefaults\backend.ServiceDefaults.csproj" />
     <ProjectReference Include="..\backend.Shared\backend.Shared.csproj" />
+    <ProjectReference Include="..\backend.Tasks\backend.Tasks.csproj" />
+    <ProjectReference Include="..\backend.Users\backend.Users.csproj" />
   </ItemGroup>
 </Project>

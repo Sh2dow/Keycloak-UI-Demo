@@ -27,11 +27,13 @@ public class TasksDbContext : DbContext
 
             entity.Property(x => x.Status)
                 .IsRequired()
-                .HasMaxLength(32);
+                .HasMaxLength(32)
+                .HasDefaultValue("todo");
 
             entity.Property(x => x.Priority)
                 .IsRequired()
-                .HasMaxLength(32);
+                .HasMaxLength(32)
+                .HasDefaultValue("medium");
 
             entity.HasIndex(x => x.UserId);
 
