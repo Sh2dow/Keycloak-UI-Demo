@@ -9,7 +9,6 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
     private readonly IUserDirectory _userDirectory;
     private readonly ICurrentUserAccessor _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private AppUser? _cachedUser;
 
     public EffectiveUserAccessor(
         IUserDirectory userDirectory,
@@ -29,31 +28,43 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
 
     public async Task<AppUser> GetUserAsync(CancellationToken ct = default)
     {
-        if (_cachedUser != null) return _cachedUser;
-
         var sub = _currentUser.Subject;
         var rawAsUserId = _httpContextAccessor.HttpContext?.Request.Query["asUserId"].FirstOrDefault();
+        var isAuthenticated = !string.IsNullOrWhiteSpace(sub);
+        var hasAsUserId = !string.IsNullOrWhiteSpace(rawAsUserId);
+        var roles = _httpContextAccessor.HttpContext?.User.Claims
+            .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToList() ?? new List<string>();
 
-        if (string.IsNullOrWhiteSpace(sub))
+        // Impersonation diagnostics: log whenever asUserId is present so we can trace mismatches in production
+        if (hasAsUserId)
         {
-            if (!string.IsNullOrWhiteSpace(rawAsUserId))
+            // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
+            System.Diagnostics.Debug.WriteLine(
+                $"[EffectiveUserAccessor] sub={sub}, isAuthenticated={isAuthenticated}, rawAsUserId={rawAsUserId}, roles=[{string.Join(",", roles)}]");
+        }
+
+        if (!isAuthenticated)
+        {
+            if (hasAsUserId)
             {
-                // Log a warning so we can detect when anonymous requests try to impersonate
-                // (this usually means the JWT token was rejected or missing)
+                // This usually means the JWT token was rejected or missing downstream.
+                // Throwing here makes the failure explicit instead of silently returning anonymous data.
+                throw new HttpProblemException(
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "Impersonation requires a valid JWT token.");
             }
 
-            // Return a default user for anonymous requests
-            var defaultUser = await _userDirectory.EnsureAsync("anonymous", "Anonymous", null, ct);
-            _cachedUser = defaultUser;
-            return _cachedUser;
+            return await _userDirectory.EnsureAsync("anonymous", "Anonymous", null, ct);
         }
 
         var currentUser = await _userDirectory.EnsureAsync(sub, _currentUser.PreferredUsername, _currentUser.Email, ct);
 
-        if (string.IsNullOrWhiteSpace(rawAsUserId))
+        if (!hasAsUserId)
         {
-            _cachedUser = currentUser;
-            return _cachedUser;
+            return currentUser;
         }
 
         if (!Guid.TryParse(rawAsUserId, out var asUserId))
@@ -66,8 +77,7 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
 
         if (asUserId == currentUser.Id)
         {
-            _cachedUser = currentUser;
-            return _cachedUser;
+            return currentUser;
         }
 
         if (!_currentUser.IsInRole("admin"))
@@ -82,7 +92,6 @@ public sealed class EffectiveUserAccessor : IEffectiveUserAccessor
             throw new HttpProblemException(StatusCodes.Status404NotFound, "Not Found", "Target user not found.");
         }
 
-        _cachedUser = targetUser;
-        return _cachedUser;
+        return targetUser;
     }
 }
