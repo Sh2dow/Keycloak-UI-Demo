@@ -1,5 +1,7 @@
 # Keycloak UI Demo
 
+![demo](./Docs/demo.png)
+
 A microservices demo application showcasing modern .NET and React architecture with Keycloak authentication.
 
 ## Tech Stack
